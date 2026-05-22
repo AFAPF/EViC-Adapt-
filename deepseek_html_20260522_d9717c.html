@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>EViC adapté - Évaluation de la frappe au clavier</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', sans-serif; }
+        body { background: #f0f4f8; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; border-radius: 32px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); padding: 20px 24px 32px; }
+        h1, h2 { color: #1e3c72; }
+        .step { display: none; animation: fadeIn 0.3s ease; }
+        .step.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);} }
+        button { background: #2c7da0; border: none; color: white; padding: 10px 24px; border-radius: 40px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 16px; margin-right: 12px; transition: 0.2s; }
+        button:hover { background: #1f5e7a; transform: scale(1.02); }
+        button:disabled { background: #95a5a6; cursor: not-allowed; transform: none; }
+        .secondary-btn { background: #6c757d; }
+        .success-btn { background: #27ae60; }
+        .success-btn:hover { background: #2ecc71; }
+        .timer { font-size: 2rem; font-weight: bold; font-family: monospace; background: #e9ecef; display: inline-block; padding: 8px 20px; border-radius: 60px; margin: 10px 0; }
+        textarea { width: 100%; min-height: 180px; padding: 16px; font-size: 1rem; font-family: 'Courier New', monospace; border: 2px solid #ced4da; border-radius: 20px; resize: vertical; background: #fefefe; }
+        textarea:focus { outline: none; border-color: #2c7da0; }
+        .model-text { background: #e2f0f7; padding: 16px; border-radius: 20px; margin: 16px 0; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+        .stats { display: flex; gap: 20px; flex-wrap: wrap; margin: 12px 0; font-weight: bold; }
+        .stat-card { background: #f8f9fa; padding: 8px 16px; border-radius: 40px; }
+        .question-group { background: #f1f3f5; padding: 16px; border-radius: 24px; margin-bottom: 20px; }
+        select, input { padding: 8px 12px; border-radius: 30px; border: 1px solid #ccc; font-size: 1rem; }
+        .bilan-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .bilan-table th, .bilan-table td { border-bottom: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        .annotation { background: #fff3cd; border-left: 6px solid #ffc107; padding: 12px 16px; margin: 16px 0; border-radius: 16px; }
+        .radar-container { max-width: 450px; margin: 20px auto; }
+        footer { text-align: center; font-size: 0.8rem; color: #6c757d; margin-top: 30px; }
+        .error { color: #c0392b; background: #fadbd8; padding: 8px; border-radius: 20px; }
+        .button-group { display: flex; flex-wrap: wrap; align-items: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- ACCUEIL -->
+    <div id="step-welcome" class="step active">
+        <h1>📋 Évaluation de la frappe au clavier</h1>
+        <p>Compare ta vitesse de frappe avec les repères d'écriture manuscrite (sans visée diagnostique).<br>
+        Trois épreuves : <strong>Copie (5 min)</strong>, <strong>Répétition (3 min)</strong>, <strong>Dictée (5 min)</strong>.<br>
+        L'observateur complètera un petit questionnaire après les tests.</p>
+        <div class="question-group">
+            <label>👤 Prénom / Code élève : <input type="text" id="eleveNom" placeholder="Ex: Lucas"></label><br><br>
+            <label>📚 Niveau scolaire : 
+                <select id="niveauSelect">
+                    <option value="CE1">CE1</option><option value="CE2">CE2</option><option value="CM1">CM1</option>
+                    <option value="CM2">CM2</option><option value="6eme">6ème</option><option value="4eme">4ème</option>
+                    <option value="2nde">2nde</option>
+                </select>
+            </label>
+        </div>
+        <button id="startTestBtn">▶ Commencer le test</button>
+        <footer>Seul le MPM (mots par minute) est mesuré. Les corrections (touche effacer) sont comptabilisées.</footer>
+    </div>
+
+    <!-- TEST (3 épreuves) -->
+    <div id="step-test" class="step">
+        <h2 id="epreuveTitle">Copie de texte</h2>
+        <div id="modeleZone" class="model-text"></div>
+        <div class="stats">
+            <span class="stat-card">⏱️ <span id="chrono">00:00</span></span>
+            <span class="stat-card">🔤 Caractères : <span id="carCount">0</span></span>
+            <span class="stat-card">🗑️ Effacements : <span id="delCount">0</span></span>
+            <span class="stat-card">📝 MPM : <span id="mpmLive">0</span></span>
+        </div>
+        <textarea id="saisie" placeholder="Commencez à taper ici..." spellcheck="false"></textarea>
+        <div class="button-group">
+            <button id="finishEarlyBtn" class="success-btn">✅ J'ai terminé</button>
+            <button id="nextEpreuveBtn" disabled>➡️ Épreuve suivante</button>
+        </div>
+    </div>
+
+    <!-- QUESTIONNAIRE OBSERVATEUR -->
+    <div id="step-questionnaire" class="step">
+        <h2>📝 Questionnaire observateur</h2>
+        <p>À remplir après les 3 épreuves.</p>
+        <div id="questionsContainer"></div>
+        <button id="finalizeBtn">✅ Générer le bilan</button>
+    </div>
+
+    <!-- BILAN FINAL -->
+    <div id="step-bilan" class="step">
+        <h2>📄 Bilan personnalisé</h2>
+        <div id="bilanContent"></div>
+        <button id="restartBtn" class="secondary-btn">⟳ Nouveau test</button>
+        <button id="printBtn" class="secondary-btn">🖨️ Imprimer / PDF</button>
+    </div>
+</div>
+
+<script>
+    // ======================= CONFIGURATION =======================
+    const CONFIG = {
+        test: { durees: { copie: 300, repetition: 180, dictee: 300 }, mot_repetition: "lames" },
+        niveaux: [
+            { id: "CE1", texte_copie: "Le chat de la sorcière fait la tête. Il ne veut plus goûter les recettes de sa patronne. La dernière fois, il a été transformé en souris.", texte_dictee: "Les six petits rossignols restent sagement dans le nid bien chaud pendant que leur maman vole aux alentours.", normes: { copie: { moyenne: 7.6, ecart_type: 2.0 }, repetition: { moyenne: 9.2, ecart_type: 2.22 }, dictee: { moyenne: 6.24, ecart_type: 1.39 } } },
+            { id: "CE2", texte_copie: "Voici deux heures que nous sommes dans le train. Le paysage défile sous nos yeux. Pour mieux voir, je descends la vitre du compartiment. Mais la porte en face est ouverte et, horreur, voilà que le chapeau de la vieille dame s’envole dans le couloir.", texte_dictee: "Françoise a reçu un magnifique livre illustré. Elle rit. Papa et maman la récompensent pour son travail. Elle embrasse ses parents. « Ce soir, je le couvrirai avec soin, je le rangerai dans la bibliothèque car je tiens à mes livres ! »", normes: { copie: { moyenne: 9.98, ecart_type: 1.41 }, repetition: { moyenne: 11.53, ecart_type: 1.32 }, dictee: { moyenne: 10.7, ecart_type: 2.03 } } },
+            { id: "CM1", texte_copie: "Il était une fois un joueur de flûte magicien… Tout le monde connaît cette vieille histoire. Elle parle d’une cité envahie par les rats et d’un jeune homme qui, avec sa flûte magique, entraîna les rats vers la rivière pour les noyer. Mais le maire ne voulut pas le récompenser. Le jeune homme recommença alors à jouer de la flûte et emmena avec lui tous les enfants.", texte_dictee: "Ils sortirent des bois et s’engagent sur une route. Et tout à coup le petit chaton aperçut sa maison. De joie, il redressa sa queue toute droite et courut de toute la vitesse de ses petites pattes. Et en arrivant il déclara, encore tout essoufflé de sa course : Jamais, jamais plus je n’irai seul dans les bois…", normes: { copie: { moyenne: 12.25, ecart_type: 2.5 }, repetition: { moyenne: 15.65, ecart_type: 2.7 }, dictee: { moyenne: 10.82, ecart_type: 1.96 } } },
+            { id: "CM2", texte_copie: "La première fée choisit une belle pierre ronde et la transforma en un puissant cheval blanc. La deuxième fée écarta quelques fleurs, toucha la terre et en fit jaillir une source aux eaux transparentes. La troisième fée, toute impatiente, planta sa baguette dans le sol. Aussitôt, un magnifique chêne se mit à pousser. Les branches n’arrêtaient pas de grandir, repoussant plus belles et plus fortes chaque fois qu’on les coupait.", texte_dictee: "Quand on s’élève, grâce à l’avion, l’esprit doit faire un effort d’imagination devant ces aspects inhabituels qu’offrent les paysages. Ce filet d’eau, c’est un fleuve que vous traversez difficilement à la nage. Cette tache verte, c’est la forêt dans laquelle vous vous êtes égarés. Ces rubans qui se déroulent interminablement jusqu’à cet horizon, sans cesse reculé, sont des routes, et ces mouches qui s’y promènent sont des autoroutes… Que de surprises… Mais quelle manière agréable d’assurer ses connaissances géographiques.", normes: { copie: { moyenne: 14.13, ecart_type: 1.48 }, repetition: { moyenne: 16.43, ecart_type: 1.5 }, dictee: { moyenne: 14.5, ecart_type: 1.47 } } },
+            { id: "6eme", texte_copie: "Il fait très beau, très chaud, et la piscine est pleine de monde. De tous les côtés, ça saute, ça crie. Les rires et les éclaboussures se mélangent, et on a l’impression qu’on ne pourra jamais trouver sa place dans toute cette pagaille éblouissante. Heureusement, le bassin est en forme de grand haricot, et il y a des espaces où l’on peut nager. Enfin, juste quelques brasses, avant de prendre un ballon sur la tête. Mais ce qui est magique, c’est que dès qu’on est dans l’eau, on ne sent plus du tout cette excitation. On est simplement bien, tout souple et léger, tout frais surtout.", texte_dictee: "Il fait très beau, très chaud, et la piscine est pleine de monde. De tous les côtés, ça saute, ça crie. Les rires et les éclaboussures se mélangent, et on a l’impression qu’on ne pourra jamais trouver sa place dans toute cette pagaille éblouissante. Heureusement, le bassin est en forme de grand haricot, et il y a des espaces où l’on peut nager. Enfin, juste quelques brasses, avant de prendre un ballon sur la tête. Mais ce qui est magique, c’est que dès qu’on est dans l’eau, on ne sent plus du tout cette excitation. On est simplement bien, tout souple et léger, tout frais surtout.", normes: { copie: { moyenne: 16.31, ecart_type: 4.78 }, repetition: { moyenne: 17.77, ecart_type: 5.46 }, dictee: { moyenne: 14.8, ecart_type: 4.18 } } },
+            { id: "4eme", texte_copie: "Les yeux des êtres vivants possèdent la plus étonnante des propriétés : le regard. Il n’y a pas plus singulier. On ne dit pas des oreilles des créatures qu’elles ont un « écoutard », ni de leur narines qu’elles ont un « sentard » ou un « reniflard ». Qu’est-ce que le regard ? C’est inexprimable. Aucun mot ne peut approcher son essence étrange. Et pourtant, le regard existe. Il y a même peu de réalités qui existent à ce point. Quelle est la différence entre les yeux qui ont un regard et les yeux qui n’en n’ont pas ? Cette différence à un nom : c’est la vie. La vie commence là ou commence le regard.", texte_dictee: "Les yeux des êtres vivants possèdent la plus étonnante des propriétés : le regard. Il n’y a pas plus singulier. On ne dit pas des oreilles des créatures qu’elles ont un « écoutard », ni de leur narines qu’elles ont un « sentard » ou un « reniflard ». Qu’est-ce que le regard ? C’est inexprimable. Aucun mot ne peut approcher son essence étrange. Et pourtant, le regard existe. Il y a même peu de réalités qui existent à ce point. Quelle est la différence entre les yeux qui ont un regard et les yeux qui n’en n’ont pas ? Cette différence à un nom : c’est la vie. La vie commence là ou commence le regard.", normes: { copie: { moyenne: 21.28, ecart_type: 3.17 }, repetition: { moyenne: 20.29, ecart_type: 4.09 }, dictee: { moyenne: 18.92, ecart_type: 4.98 } } },
+            { id: "2nde", texte_copie: "- Il y a des millions d’années que les fleurs fabriquent des épines. Il y a des millions d’années que les moutons mangent quand même les fleurs. Et ce n’est pas sérieux de chercher à comprendre pourquoi elles se donnent tant de mal pour se fabriquer des épines qui ne servent jamais à rien ? Ce n’est pas important la guerre des moutons et des fleurs ? Ce n’est pas plus sérieux et plus important que les additions d’un gros Monsieur rouge ? Et si je connais, moi, une fleur unique au monde, qui n’existe nulle part, sauf dans ma planète, et qu’un petit mouton peut anéantir d’un seul coup, comme ça, un matin, sans se rendre compte de ce qu’il fait, ce n’est pas important ça !", texte_dictee: "- Il y a des millions d’années que les fleurs fabriquent des épines. Il y a des millions d’années que les moutons mangent quand même les fleurs. Et ce n’est pas sérieux de chercher à comprendre pourquoi elles se donnent tant de mal pour se fabriquer des épines qui ne servent jamais à rien ? Ce n’est pas important la guerre des moutons et des fleurs ? Ce n’est pas plus sérieux et plus important que les additions d’un gros Monsieur rouge ? Et si je connais, moi, une fleur unique au monde, qui n’existe nulle part, sauf dans ma planète, et qu’un petit mouton peut anéantir d’un seul coup, comme ça, un matin, sans se rendre compte de ce qu’il fait, ce n’est pas important ça !", normes: { copie: { moyenne: 22.69, ecart_type: 3.38 }, repetition: { moyenne: 23.07, ecart_type: 2.73 }, dictee: { moyenne: 21.43, ecart_type: 3.62 } } }
+        ],
+        questionnaire: [
+            { id: "mains", texte: "Utilisation des deux mains ?", options: ["Une seule main", "Deux mains"] },
+            { id: "doigts", texte: "Doigts utilisés", options: ["Index seuls", "Plusieurs doigts (sans tous)", "Tous les doigts"] },
+            { id: "regard_clavier", texte: "Regarde-t-il le clavier ?", options: ["Toujours", "Parfois", "Jamais"] },
+            { id: "strategie_copie", texte: "Stratégie de copie observée", options: ["Lettre à lettre", "Mot à mot", "Phrase à phrase"] },
+            { id: "effaceurs_excessifs", texte: "Utilisation excessive de la touche effacer ?", options: ["Non", "Oui (plus d'1 fois par ligne en moyenne)"] }
+        ]
+    };
+
+    // ======================= VARIABLES =======================
+    let eleveData = { nom: "", niveau: "CE1" };
+    let epreuves = ["copie", "repetition", "dictee"];
+    let currentEpreuveIndex = 0;
+    let timerInterval = null;
+    let timeLeft = 0;
+    let isActive = false;
+    let isEpreuveTerminee = false;  // évite de terminer deux fois
+    let results = {
+        copie: { caracteres: 0, deletions: 0, mpm: 0, ecart: null },
+        repetition: { caracteres: 0, deletions: 0, mpm: 0, ecart: null },
+        dictee: { caracteres: 0, deletions: 0, mpm: 0, ecart: null }
+    };
+    let questionnaireReponses = {};
+
+    function getNiveauConfig() {
+        return CONFIG.niveaux.find(n => n.id === eleveData.niveau);
+    }
+
+    // Fonction commune pour finaliser une épreuve (temps écoulé ou bouton "J'ai terminé")
+    function finaliserEpreuve() {
+        if (!isActive || isEpreuveTerminee) return;
+        isActive = false;
+        isEpreuveTerminee = true;
+        clearInterval(timerInterval);
+        const textarea = document.getElementById("saisie");
+        textarea.disabled = true;
+        const caracteresFin = parseInt(document.getElementById("carCount").innerText) || 0;
+        const deletionsFin = parseInt(document.getElementById("delCount").innerText) || 0;
+        const epreuveId = epreuves[currentEpreuveIndex];
+        const dureeTotale = CONFIG.test.durees[epreuveId];
+        // Calcul du temps réel écoulé (si l'épreuve a été interrompue avant la fin)
+        let tempsReel = dureeTotale - timeLeft;
+        if (tempsReel <= 0) tempsReel = dureeTotale;
+        const mpmFinal = (caracteresFin / (tempsReel / 60)) / 6;
+        results[epreuveId].caracteres = caracteresFin;
+        results[epreuveId].deletions = deletionsFin;
+        results[epreuveId].mpm = mpmFinal;
+        const niveau = getNiveauConfig();
+        if (niveau && niveau.normes[epreuveId]) {
+            const norme = niveau.normes[epreuveId];
+            results[epreuveId].ecart = (mpmFinal - norme.moyenne) / norme.ecart_type;
+        } else {
+            results[epreuveId].ecart = 0;
+        }
+        // Activer le bouton suivant
+        document.getElementById("nextEpreuveBtn").disabled = false;
+        document.getElementById("nextEpreuveBtn").innerText = "➡️ Épreuve suivante";
+        // Désactiver le bouton "J'ai terminé"
+        document.getElementById("finishEarlyBtn").disabled = true;
+    }
+
+    // Mise à jour de l'affichage du chrono (appelée chaque seconde)
+    function updateChronoDisplay() {
+        let minutes = Math.floor(timeLeft / 60);
+        let seconds = timeLeft % 60;
+        document.getElementById("chrono").innerText = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+        if (timeLeft <= 0 && isActive && !isEpreuveTerminee) {
+            finaliserEpreuve();
+        }
+    }
+
+    function startEpreuve(epreuveId) {
+        const configNiveau = getNiveauConfig();
+        if (!configNiveau) return;
+        const dureeSec = CONFIG.test.durees[epreuveId];
+        let modeleHtml = "";
+        if (epreuveId === "copie") {
+            modeleHtml = `<strong>Texte à copier :</strong><br>${configNiveau.texte_copie}`;
+            document.getElementById("epreuveTitle").innerText = "📝 Copie (5 min)";
+        } else if (epreuveId === "repetition") {
+            modeleHtml = `<strong>Répète le mot "${CONFIG.test.mot_repetition}" encore et encore, en séparant par des espaces.</strong><br><small>Durée 3 min.</small>`;
+            document.getElementById("epreuveTitle").innerText = "🔄 Répétition (3 min)";
+        } else {
+            modeleHtml = `<strong>Dictée : l'enseignant lit le texte. Tapez ce que vous entendez.</strong><br><i>Durée 5 min. Le texte n'est pas affiché.</i>`;
+            document.getElementById("epreuveTitle").innerText = "🎤 Dictée (5 min)";
+        }
+        document.getElementById("modeleZone").innerHTML = modeleHtml;
+        
+        const textarea = document.getElementById("saisie");
+        textarea.value = "";
+        textarea.disabled = false;
+        textarea.focus();
+        document.getElementById("carCount").innerText = "0";
+        document.getElementById("delCount").innerText = "0";
+        document.getElementById("mpmLive").innerText = "0";
+        
+        timeLeft = dureeSec;
+        isActive = true;
+        isEpreuveTerminee = false;
+        updateChronoDisplay();
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (!isActive) return;
+            if (timeLeft <= 0) {
+                // déjà géré dans updateChronoDisplay, mais sécurité
+                if (!isEpreuveTerminee) finaliserEpreuve();
+            } else {
+                timeLeft--;
+                updateChronoDisplay();
+                // Mise à jour en direct du MPM et des caractères
+                if (isActive) {
+                    const caracteres = textarea.value.length;
+                    document.getElementById("carCount").innerText = caracteres;
+                    const minutesEcoulees = (dureeSec - timeLeft) / 60;
+                    let mpm = 0;
+                    if (minutesEcoulees > 0) mpm = (caracteres / minutesEcoulees) / 6;
+                    document.getElementById("mpmLive").innerText = mpm.toFixed(1);
+                }
+            }
+        }, 1000);
+        
+        document.getElementById("nextEpreuveBtn").disabled = true;
+        document.getElementById("nextEpreuveBtn").innerText = "⏳ Épreuve en cours...";
+        document.getElementById("finishEarlyBtn").disabled = false;
+        
+        // Événements sur le textarea
+        textarea.onkeydown = function(e) {
+            if (!isActive) return;
+            if (e.key === "Backspace" || e.key === "Delete") {
+                let del = parseInt(document.getElementById("delCount").innerText);
+                document.getElementById("delCount").innerText = del + 1;
+            }
+        };
+        textarea.oncopy = textarea.oncut = textarea.onpaste = (e) => e.preventDefault();
+        textarea.oninput = function() {
+            if (!isActive) return;
+            const caracteres = this.value.length;
+            document.getElementById("carCount").innerText = caracteres;
+            const minutesEcoulees = (dureeSec - timeLeft) / 60;
+            let mpm = 0;
+            if (minutesEcoulees > 0) mpm = (caracteres / minutesEcoulees) / 6;
+            document.getElementById("mpmLive").innerText = mpm.toFixed(1);
+        };
+    }
+
+    function buildQuestionnaire() {
+        const container = document.getElementById("questionsContainer");
+        container.innerHTML = "";
+        CONFIG.questionnaire.forEach((q, idx) => {
+            const div = document.createElement("div");
+            div.className = "question-group";
+            div.innerHTML = `<strong>${q.texte}</strong><br>`;
+            q.options.forEach(opt => {
+                div.innerHTML += `<label style="margin-right:16px"><input type="radio" name="q${idx}" value="${opt}"> ${opt}</label>`;
+            });
+            container.appendChild(div);
+        });
+    }
+
+    function afficherBilan() {
+        const niveau = getNiveauConfig();
+        let annotationsHtml = "";
+        const seuils = [
+            { cond: results.copie.ecart < -1.5, msg: "⚠️ Très lent en copie : besoin d’un apprentissage systématique du clavier." },
+            { cond: results.repetition.ecart > 0, msg: "✅ Bonne rapidité sur mot répété : automatisation possible." },
+            { cond: (results.copie.deletions / 5) > 10, msg: "🗑️ L’élève corrige très souvent (beaucoup d'effacements) : manque d’assurance." },
+            { cond: Math.abs(results.copie.ecart - results.dictee.ecart) > 2, msg: "📉 Grande différence copie/dictée : difficulté à transcrire l’oral en frappe." }
+        ];
+        seuils.forEach(s => { if (s.cond) annotationsHtml += `<div class="annotation">${s.msg}</div>`; });
+        if (!annotationsHtml) annotationsHtml = "<div class='annotation'>Aucune alerte particulière. Vitesse de frappe cohérente.</div>";
+        
+        const tableHtml = `
+            <table class="bilan-table">
+                <thead><tr><th>Épreuve</th><th>MPM élève</th><th>Norme (manuscrite)</th><th>Écart (σ)</th><th>Effacements</th></tr></thead>
+                <tbody>
+                    <tr><td>Copie</td><td>${results.copie.mpm.toFixed(1)}</td><td>${niveau.normes.copie.moyenne}</td><td>${results.copie.ecart.toFixed(2)}</td><td>${results.copie.deletions}</td></tr>
+                    <tr><td>Répétition</td><td>${results.repetition.mpm.toFixed(1)}</td><td>${niveau.normes.repetition.moyenne}</td><td>${results.repetition.ecart.toFixed(2)}</td><td>${results.repetition.deletions}</td></tr>
+                    <tr><td>Dictée</td><td>${results.dictee.mpm.toFixed(1)}</td><td>${niveau.normes.dictee.moyenne}</td><td>${results.dictee.ecart.toFixed(2)}</td><td>${results.dictee.deletions}</td></tr>
+                </tbody>
+            </table>
+            <h3>📋 Observations</h3>
+            <ul>
+                <li>Mains : ${questionnaireReponses.mains || "?"}</li>
+                <li>Doigts : ${questionnaireReponses.doigts || "?"}</li>
+                <li>Regard clavier : ${questionnaireReponses.regard_clavier || "?"}</li>
+                <li>Stratégie : ${questionnaireReponses.strategie_copie || "?"}</li>
+                <li>Effaceurs excessifs : ${questionnaireReponses.effaceurs_excessifs || "?"}</li>
+            </ul>
+            <div class="radar-container"><canvas id="radarChart" width="400" height="400"></canvas></div>
+            ${annotationsHtml}
+            <p><strong>🔍 Interprétation indicative :</strong> Ces résultats comparent la vitesse de frappe avec les attendus d'écriture manuscrite. Un écart négatif indique une lenteur relative. À utiliser pour orienter des exercices de clavier.</p>
+        `;
+        document.getElementById("bilanContent").innerHTML = tableHtml;
+        setTimeout(() => {
+            const ctx = document.getElementById("radarChart").getContext("2d");
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Copie', 'Répétition', 'Dictée'],
+                    datasets: [{
+                        label: 'Écart-type (σ) par rapport à la norme manuscrite',
+                        data: [results.copie.ecart, results.repetition.ecart, results.dictee.ecart],
+                        backgroundColor: ['#3498db', '#2ecc71', '#e67e22']
+                    }]
+                },
+                options: { scales: { y: { title: { display: true, text: "Écart (σ)" } } } }
+            });
+        }, 100);
+    }
+
+    // ============= GESTIONNAIRES D'ÉVÉNEMENTS =============
+    document.getElementById("startTestBtn").addEventListener("click", () => {
+        const nom = document.getElementById("eleveNom").value.trim();
+        if (!nom) { alert("Veuillez entrer un prénom/code élève."); return; }
+        eleveData.nom = nom;
+        eleveData.niveau = document.getElementById("niveauSelect").value;
+        currentEpreuveIndex = 0;
+        results = {
+            copie: { caracteres:0, deletions:0, mpm:0, ecart:null },
+            repetition: { caracteres:0, deletions:0, mpm:0, ecart:null },
+            dictee: { caracteres:0, deletions:0, mpm:0, ecart:null }
+        };
+        document.getElementById("step-welcome").classList.remove("active");
+        document.getElementById("step-test").classList.add("active");
+        startEpreuve(epreuves[0]);
+    });
+
+    document.getElementById("finishEarlyBtn").addEventListener("click", () => {
+        if (isActive && !isEpreuveTerminee) {
+            finaliserEpreuve();
+        }
+    });
+
+    document.getElementById("nextEpreuveBtn").addEventListener("click", () => {
+        if (isActive || !isEpreuveTerminee) {
+            alert("L'épreuve n'est pas terminée. Veuillez attendre la fin du temps ou cliquer sur 'J'ai terminé'.");
+            return;
+        }
+        if (currentEpreuveIndex + 1 < epreuves.length) {
+            currentEpreuveIndex++;
+            startEpreuve(epreuves[currentEpreuveIndex]);
+        } else {
+            clearInterval(timerInterval);
+            document.getElementById("step-test").classList.remove("active");
+            document.getElementById("step-questionnaire").classList.add("active");
+            buildQuestionnaire();
+        }
+    });
+
+    document.getElementById("finalizeBtn").addEventListener("click", () => {
+        CONFIG.questionnaire.forEach((q, idx) => {
+            const radios = document.querySelectorAll(`input[name="q${idx}"]`);
+            let selected = null;
+            for (let r of radios) if (r.checked) { selected = r.value; break; }
+            questionnaireReponses[q.id] = selected || "Non renseigné";
+        });
+        afficherBilan();
+        document.getElementById("step-questionnaire").classList.remove("active");
+        document.getElementById("step-bilan").classList.add("active");
+    });
+
+    document.getElementById("restartBtn").addEventListener("click", () => location.reload());
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+</script>
+</body>
+</html>
