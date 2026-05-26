@@ -171,7 +171,7 @@
     function showLogin() {
       const users = App.getUsers();
       App.render(`
-        <div class="top-nav"><span class="logo">🧠 ErgoEval Pro</span><span>Bilan numérique pour enfants Dys</span></div>
+        <div class="top-nav"><span class="logo">🧠 EViC-Adapt</span><span>Bilan numérique pour enfants Dys</span></div>
         <div class="card">
           <h2>Profil</h2>
           <select id="userSelect" style="width:100%; margin-bottom:1rem;"><option value="">-- Choisir un profil --</option>
@@ -197,7 +197,7 @@
       const hist = sessions.length ? sessions.map(s=>`<div style="padding:0.3rem; background:var(--bg); border-radius:6px; margin:0.2rem 0">${s.epreuve} (${s.mode}) – ${new Date(s.date).toLocaleDateString()} – ${JSON.stringify(s.score)}${s.sentiment?' - '+s.sentiment:''}</div>`).join('') : '<em>Aucune épreuve</em>';
       App.render(`
         <div class="top-nav">
-          <span class="logo">🧠 ErgoEval Pro</span>
+          <span class="logo">🧠 EViC-Adapt</span>
           <button class="btn" onclick="showEpreuves()">🧪 Épreuves</button>
           <button class="btn" onclick="showRapport()">📊 Rapport détaillé</button>
           <button class="btn secondary" onclick="openSettings()">⚙️ Paramètres</button>
@@ -215,7 +215,7 @@
 
     function showEpreuves() {
       App.render(`
-        <div class="top-nav"><span class="logo">🧠 ErgoEval Pro</span><button class="btn" onclick="showDashboard()">🏠 Accueil</button></div>
+        <div class="top-nav"><span class="logo">🧠 EViC-Adapt</span><button class="btn" onclick="showDashboard()">🏠 Accueil</button></div>
         <div class="card"><h2>📋 Épreuves</h2>
           <div class="grid">
             <button class="btn" onclick="Epreuves.Pointage.chooseMode()">🎯 Pointage</button>
