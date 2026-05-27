@@ -10,3 +10,5 @@ Comparer automatiquement les performances de l’élève aux normes d’écritur
 Générer un bilan personnalisé (tableau des scores, écarts-types, graphique, annotations automatiques).
 
 Recueillir des observations qualitatives (utilisation des mains, doigts, regard clavier, etc.) via un questionnaire intégré.
+
+https://afapf.github.io/EViC-Adapt-/
