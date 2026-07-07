@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>EViC-Adapt – Bilan numérique complet</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f7fc; --surface: #ffffff; --text: #1e293b;
+      --primary: #3b82f6; --primary-hover: #2563eb;
+      --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+      --border: #e2e8f0; --radius: 12px;
+      --shadow: 0 8px 24px rgba(0,0,0,0.06);
+      --font-size: 16px; --font-family: 'Inter', system-ui, sans-serif;
+    }
+    body.dark {
+      --bg: #0f172a; --surface: #1e293b; --text: #e2e8f0;
+      --primary: #60a5fa; --primary-hover: #3b82f6;
+      --success: #34d399; --warning: #fbbf24; --danger: #f87171;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family); font-size: var(--font-size);
+      background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+    .app-shell { max-width: 960px; margin: 0 auto; padding: 1rem; }
+    .top-nav {
+      display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+      background: var(--surface); padding: 0.75rem 1rem; border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .logo { font-weight: 700; font-size: 1.25rem; color: var(--primary); margin-right: auto; }
+    .btn {
+      background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px;
+      cursor: pointer; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.3rem;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .btn.secondary { background: #64748b; }
+    .btn.success { background: var(--success); }
+    .btn.warning { background: var(--warning); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .card {
+      background: var(--surface); border-radius: var(--radius); padding: 2rem; margin-bottom: 1rem;
+      box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
+    input, select, textarea {
+      padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); color: var(--text); font-size: 0.95rem; font-family: var(--font-family);
+    }
+    .game-area {
+      position: relative; width: 100%; height: 400px; background: #f8fafc;
+      border: 2px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 1rem 0;
+    }
+    .target {
+      position: absolute; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff6b6b, #c92a2a);
+      box-shadow: 0 0 12px rgba(255,0,0,0.5); transition: transform 0.1s;
+    }
+    .target.clicked { background: radial-gradient(circle at 30% 30%, #69db7c, #2b8a3e); }
+    .timer { font-size: 1.4rem; font-weight: 600; margin: 0.5rem 0; background: var(--bg); padding: 0.3rem 0.8rem; border-radius: 6px; display: inline-block; }
+    .grid-cell {
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border);
+      user-select: none; transition: background 0.2s;
+    }
+    .grid-cell.selected { background: #d3f9d8; border-color: var(--success); box-shadow: 0 0 0 2px var(--success); }
+    .dropzone {
+      border: 2px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      color: #94a3b8; font-size: 0.9rem; background: rgba(0,0,0,0.02); min-width: 80px; min-height: 80px;
+    }
+    .construction-zone {
+      position: relative; width: 100%; height: 350px; background: #f9fafb;
+      border: 2px dashed var(--border); border-radius: var(--radius); overflow: hidden; touch-action: none;
+    }
+    .palette-item {
+      width: 50px; height: 50px; border-radius: 8px; cursor: grab; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: transform 0.2s;
+    }
+    .shape-on-zone { position: absolute; cursor: move; border: 1px solid rgba(0,0,0,0.2); touch-action: none; }
+    .stat-container { position: relative; height: 300px; margin: 1rem 0; }
+    canvas { touch-action: none; display: block; }
+    .score-badge {
+      display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: bold;
+      background: var(--primary); color: white; font-size: 0.8rem;
+    }
+    .category-card {
+      background: var(--surface); border-radius: var(--radius); padding: 1rem; margin: 0.5rem;
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+    }
+    .emoji-btn { font-size: 2rem; background: none; border: 2px solid transparent; border-radius: 8px; padding: 0.3rem 0.6rem; cursor: pointer; }
+    .emoji-btn:hover, .emoji-btn.selected { border-color: var(--primary); background: var(--bg); }
+    .mem-item {
+      cursor: pointer; padding: 0.5rem; border: 2px solid transparent; border-radius: 8px; user-select: none;
+    }
+    .mem-item.selected { border-color: var(--primary); background: var(--primary-light); }
+    .norm-bar { height: 10px; background: #e0e0e0; border-radius: 4px; margin: 0.3rem 0; position: relative; }
+    .norm-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .norm-indicator { position: absolute; top: -5px; width: 4px; height: 20px; background: black; border-radius: 2px; }
+
+    .toolbar-actions { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin:0.75rem 0; }
+    .report-header {
+      display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem;
+      background: var(--bg); border:1px solid var(--border); border-radius:10px; padding:1rem; margin:1rem 0;
+    }
+    .report-table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:0.92rem; }
+    .report-table th, .report-table td { border:1px solid var(--border); padding:0.5rem; text-align:left; vertical-align:top; }
+    .report-table th { background:var(--bg); }
+    .report-section { break-inside: avoid; page-break-inside: avoid; margin-bottom:1rem; }
+    .conclusion-box { border-left:4px solid var(--primary); background:var(--bg); padding:1rem; border-radius:8px; margin:1rem 0; }
+
+    .observer-section { border:1px solid var(--border); border-radius:10px; padding:1rem; margin:1rem 0; background:var(--surface); }
+    .observer-section h3 { margin-bottom:0.75rem; color:var(--primary); }
+    .check-list { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:0.5rem; margin:0.6rem 0 0.9rem; }
+    .check-option { display:flex; align-items:flex-start; gap:0.45rem; padding:0.45rem 0.55rem; border:1px solid var(--border); border-radius:8px; background:var(--bg); cursor:pointer; }
+    .check-option input { margin-top:0.25rem; }
+    .observer-note { font-size:0.9rem; opacity:0.85; margin:0.4rem 0 1rem; }
+    .print-only { display:none; }
+    @media print {
+      body { background:#fff !important; color:#111 !important; font-size:12px !important; }
+      .app-shell { max-width:none; padding:0; }
+      .top-nav, .no-print, .screen-only { display:none !important; }
+      .print-only { display:block !important; }
+      .card { box-shadow:none !important; border:none !important; padding:0 !important; margin:0 !important; }
+      .report-table th, .report-table td { border:1px solid #999 !important; }
+      .category-card { box-shadow:none !important; border:1px solid #999 !important; }
+      .stat-container { height:240px !important; page-break-inside:avoid; }
+      h1, h2, h3 { color:#111 !important; }
+    }
+
+  </style>
+</head>
+<body class="light">
+  <div class="app-shell" id="app"></div>
+  <script>
+    // ========== APP CORE ==========
+    const App = {
+      currentUser: null,
+      settings: { theme:'light', fontSize:'normal', fontFamily:'Inter', soundEnabled:true },
+      audioCtx: null,
+      getUsers() { return JSON.parse(localStorage.getItem('ergoeval_users')||'[]'); },
+      saveUsers(u) { localStorage.setItem('ergoeval_users', JSON.stringify(u)); },
+      getSessions(uid) { return JSON.parse(localStorage.getItem('ergoeval_sessions')||'[]').filter(s=>s.userId==uid); },
+      saveSession(s) {
+        const all = JSON.parse(localStorage.getItem('ergoeval_sessions')||'[]');
+        s.id = Date.now().toString(); all.push(s);
+        localStorage.setItem('ergoeval_sessions', JSON.stringify(all));
+      },
+      applySettings() {
+        document.body.className = this.settings.theme;
+        document.documentElement.style.setProperty('--font-family', this.settings.fontFamily);
+        const sizes = { normal:'16px', large:'20px', xlarge:'24px' };
+        document.documentElement.style.setProperty('--font-size', sizes[this.settings.fontSize]||'16px');
+      },
+      loadSettings() {
+        Object.assign(this.settings, JSON.parse(localStorage.getItem('ergoeval_settings')||'{}'));
+        this.applySettings();
+      },
+      saveSettings() {
+        localStorage.setItem('ergoeval_settings', JSON.stringify(this.settings));
+        this.applySettings();
+      },
+      beep(freq, dur) {
+        if(!this.settings.soundEnabled) return;
+        try {
+          if(!this.audioCtx) this.audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+          const o = this.audioCtx.createOscillator(), g = this.audioCtx.createGain();
+          o.type='sine'; o.frequency.value=freq; g.gain.value=0.08;
+          o.connect(g); g.connect(this.audioCtx.destination);
+          o.start(); setTimeout(()=>o.stop(), dur);
+        } catch(e){}
+      },
+      render(html) { document.getElementById('app').innerHTML = html; this.applySettings(); }
+    };
+
+    // ========== TEXTES ÉTALONNÉS ==========
+    const TEXTES_NIVEAUX = {
+      CE1: "Le chat de la sorcière fait la tête. Il ne veut plus goûter les recettes de sa patronne. La dernière fois, il a été transformé en souris.",
+      CE2: "Voici deux heures que nous sommes dans le train. Le paysage défile sous nos yeux. Pour mieux voir, je descends la vitre du compartiment. Mais la porte en face est ouverte et, horreur, voilà que le chapeau de la vieille dame s’envole dans le couloir.",
+      CM1: "Il était une fois un joueur de flûte magicien… Tout le monde connaît cette vieille histoire. Elle parle d’une cité envahie par les rats et d’un jeune homme qui, avec sa flûte magique, entraîna les rats vers la rivière pour les noyer. Mais le maire ne voulut pas le récompenser. Le jeune homme recommença alors à jouer de la flûte et emmena avec lui tous les enfants.",
+      CM2: "La première fée choisit une belle pierre ronde et la transforma en un puissant cheval blanc. La deuxième fée écarta quelques fleurs, toucha la terre et en fit jaillir une source aux eaux transparentes. La troisième fée, toute impatiente, planta sa baguette dans le sol. Aussitôt, un magnifique chêne se mit à pousser. Les branches n’arrêtaient pas de grandir, repoussant plus belles et plus fortes chaque fois qu’on les coupait.",
+      "6ème": "Il fait très beau, très chaud, et la piscine est pleine de monde. De tous les côtés, ça saute, ça crie. Les rires et les éclaboussures se mélangent, et on a l’impression qu’on ne pourra jamais trouver sa place dans toute cette pagaille éblouissante. Heureusement, le bassin est en forme de grand haricot, et il y a des espaces où l’on peut nager. Enfin, juste quelques brasses, avant de prendre un ballon sur la tête. Mais ce qui est magique, c’est que dès qu’on est dans l’eau, on ne sent plus du tout cette excitation. On est simplement bien, tout souple et léger, tout frais surtout.",
+      "4ème": "Les yeux des êtres vivants possèdent la plus étonnante des propriétés : le regard. Il n’y a pas plus singulier. On ne dit pas des oreilles des créatures qu’elles ont un « écoutard », ni de leur narines qu’elles ont un « sentard » ou un « reniflard ». Qu’est-ce que le regard ? C’est inexprimable. Aucun mot ne peut approcher son essence étrange. Et pourtant, le regard existe. Il y a même peu de réalités qui existent à ce point. Quelle est la différence entre les yeux qui ont un regard et les yeux qui n’en n’ont pas ? Cette différence à un nom : c’est la vie. La vie commence là ou commence le regard.",
+      "2nde": "Il y a des millions d’années que les fleurs fabriquent des épines. Il y a des millions d’années que les moutons mangent quand même les fleurs. Et ce n’est pas sérieux de chercher à comprendre pourquoi elles se donnent tant de mal pour se fabriquer des épines qui ne servent jamais à rien ? Ce n’est pas important la guerre des moutons et des fleurs ? Ce n’est pas plus sérieux et plus important que les additions d’un gros Monsieur rouge ? Et si je connais, moi, une fleur unique au monde, qui n’existe nulle part, sauf dans ma planète, et qu’un petit mouton peut anéantir d’un seul coup, comme ça, un matin, sans se rendre compte de ce qu’il fait, ce n’est pas important ça !"
+    };
+
+    // ========== NORMES EVIC (MPM) ==========
+    const NORMES_EVIC = {
+      copie: {
+        CE1: { moy:7.6, et:2.0 }, CE2:{ moy:9.98, et:1.41 }, CM1:{ moy:12.25, et:2.5 }, CM2:{ moy:14.13, et:1.48 },
+        "6ème":{ moy:16.31, et:4.78 }, "4ème":{ moy:21.28, et:3.17 }, "2nde":{ moy:22.69, et:3.38 }
+      },
+      repetition: {
+        CE1:{ moy:9.2, et:2.22 }, CE2:{ moy:11.53, et:1.32 }, CM1:{ moy:15.65, et:2.7 }, CM2:{ moy:16.43, et:1.5 },
+        "6ème":{ moy:17.77, et:5.46 }, "4ème":{ moy:20.29, et:4.09 }, "2nde":{ moy:23.07, et:2.73 }
+      }
+    };
+
+    // ========== NAVIGATION ==========
+    function showLogin() {
+      const users = App.getUsers();
+      App.render(`
+        <div class="top-nav"><span class="logo">🧠 EViC-Adapt</span><span>Bilan numérique pour enfants Dys</span></div>
+        <div class="card">
+          <h2>Profil</h2>
+          <select id="userSelect" style="width:100%; margin-bottom:1rem;"><option value="">-- Choisir un profil --</option>
+            ${users.map(u=>`<option value="${u.id}">${u.nom} (${u.age} ans, ${u.groupe})</option>`).join('')}
+          </select>
+          <button class="btn" onclick="selectUser()">📂 Ouvrir</button>
+          <hr style="margin:1rem 0"><h3>Nouveau profil</h3>
+          <div class="grid" style="grid-template-columns:1fr auto auto auto auto auto;">
+            <input id="newNom" placeholder="Nom complet">
+            <input type="number" id="newAge" placeholder="Âge" min="3" max="18" value="8">
+            <select id="newGroupe"><option value="dyslexie">Dyslexie</option><option value="dyspraxie">Dyspraxie</option><option value="dyscalculie">Dyscalculie</option><option value="mixte">Mixte</option></select>
+            <select id="newNiveau"><option value="">Niveau scolaire</option><option value="CE1">CE1</option><option value="CE2">CE2</option><option value="CM1">CM1</option><option value="CM2">CM2</option><option value="6ème">6ème</option><option value="4ème">4ème</option><option value="2nde">2nde</option></select>
+            <select id="newOrdiUsage"><option value="">Usage ordinateur</option><option value="debutant">Débutant</option><option value="intermediaire">Intermédiaire</option><option value="expert">Expert</option></select>
+            <button class="btn" onclick="createUser()">➕ Créer</button>
+          </div>
+        </div>
+      `);
+    }
+
+
+    function showDashboard() {
+      if(!App.currentUser) return showLogin();
+      const sessions = App.getSessions(App.currentUser.id);
+      const hist = sessions.length ? sessions.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(renderSessionHistoryItem).join('') : '<em>Aucune épreuve</em>';
+      App.render(`
+        <div class="top-nav">
+          <span class="logo">🧠 EViC-Adapt</span>
+          <button class="btn" onclick="showEpreuves()">🧪 Épreuves</button>
+          <button class="btn" onclick="showRapport()">📊 Rapport détaillé</button>
+          <button class="btn secondary" onclick="showObservateurQuestionnaire()">👀 Questionnaire observateur</button>
+          <button class="btn secondary" onclick="showDataTools()">💾 Données</button>
+          <button class="btn secondary" onclick="openSettings()">⚙️ Paramètres</button>
+          <button class="btn secondary" onclick="showInfo()">ℹ️ Notation</button>
+          <button class="btn secondary" onclick="logout()">↩️ Déconnexion</button>
+        </div>
+        <div class="card">
+          <h2>👤 ${escapeHtml(App.currentUser.nom)} (${escapeHtml(App.currentUser.age)} ans, ${escapeHtml(App.currentUser.groupe)})</h2>
+          ${App.currentUser.niveau ? `<p>Niveau scolaire : ${escapeHtml(App.currentUser.niveau)}</p>` : ''}
+          ${App.currentUser.ordiUsage ? `<p>Usage ordinateur : ${escapeHtml(App.currentUser.ordiUsage)}</p>` : ''}
+          <div class="toolbar-actions">
+            <button class="btn success" onclick="showRapport()">📄 Préparer le rapport PDF</button>
+            <button class="btn secondary" onclick="showObservateurQuestionnaire()">👀 Remplir le questionnaire observateur</button>
+            <button class="btn secondary" onclick="exportCurrentUserCSV()">⬇️ Export CSV élève</button>
+            <button class="btn secondary" onclick="exportCurrentUserJSON()">⬇️ Export JSON élève</button>
+          </div>
+          <h3>Historique</h3><p class="small-muted">Tu peux modifier une session, ajouter une note de contexte, l’exclure du rapport sans la supprimer, ou la supprimer définitivement.</p><div style="max-height:400px; overflow-y:auto;">${hist}</div>
+        </div>
+      `);
+    }
+
+    function showEpreuves() {
+      App.render(`
+        <div class="top-nav"><span class="logo">🧠 EViC-Adapt</span><button class="btn" onclick="showDashboard()">🏠 Accueil</button></div>
+        <div class="card"><h2>📋 Épreuves</h2>
+          <div class="grid">
+            <button class="btn" onclick="Epreuves.Pointage.chooseMode()">🎯 Pointage</button>
+            <button class="btn" onclick="Epreuves.GlisserDeposer.chooseMode()">🖐️ Glisser-déposer</button>
+            <button class="btn" onclick="Epreuves.DoubleClic.chooseMode()">🖱️ Double-clic</button>
+            <button class="btn" onclick="Epreuves.Dictee.chooseMode()">🔢 Dictée</button>
+            <button class="btn" onclick="Epreuves.CalculMental.chooseMode()">🧮 Calcul</button>
+            <button class="btn" onclick="Epreuves.Problemes.chooseMode()">📝 Problèmes</button>
+            <button class="btn" onclick="Epreuves.CopieTexte.chooseMode()">✍️ Copie</button>
+            <button class="btn" onclick="Epreuves.RepetitionMot.chooseMode()">🔁 Répétition</button>
+            <button class="btn" onclick="Epreuves.Barrage.chooseMode()">🔍 Cherche trouve</button>
+            <button class="btn" onclick="Epreuves.Assemblage.chooseMode()">🧩 Assemblage</button>
+            <button class="btn" onclick="Epreuves.TracePrecision.chooseMode()">✏️ Tracé</button>
+            <button class="btn" onclick="Epreuves.PointsARelier.chooseMode()">🔗 Points</button>
+            <button class="btn" onclick="Epreuves.PerceptionVisuelle.chooseMode()">👁️ Identique</button>
+            <button class="btn" onclick="Epreuves.TrailMaking.chooseMode()">🔀 Suite logique</button>
+            <button class="btn" onclick="Epreuves.Memorisation.chooseMode()">🧠 Mémoire</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function showInfo() {
+      App.render(`
+        <div class="top-nav"><span class="logo">ℹ️ Barème de notation</span><button class="btn secondary" onclick="showDashboard()">Retour</button></div>
+        <div class="card">
+          <h2>Comment sont calculées les notes sur 10 ?</h2>
+          <ul style="line-height:2;">
+            <li><b>Pointage</b> : 70% précision + 30% vitesse</li>
+            <li><b>Glisser-déposer</b> : 10 - temps/5 - erreurs×2</li>
+            <li><b>Double-clic</b> : 10 - temps/3</li>
+            <li><b>Dictée nombres</b> : (bonnes réponses / total) × 10</li>
+            <li><b>Calcul, Problèmes, Identique</b> : (bonnes réponses / total) × 10</li>
+            <li><b>Copie texte</b> : vitesse comparée aux normes du niveau + pénalité limitée selon la précision</li>
+            <li><b>Répétition mot</b> : vitesse comparée aux normes du niveau quand il est renseigné</li>
+            <li><b>Cherche trouve</b> : (trouvées/total×10) - fausses×1.5</li>
+            <li><b>Assemblage</b> : 10 - temps/15 - |3 - formes|×2</li>
+            <li><b>Tracé</b> : 10 - temps/25 - sorties×1.5</li>
+            <li><b>Points à relier</b> : 10 - temps/8 - erreurs×2</li>
+            <li><b>Suite logique</b> : 10 - temps/30 - erreurs×1.5</li>
+            <li><b>Mémoire</b> : (éléments corrects / total × 10) - fausses sélections×0.5</li>
+          </ul>
+          <p style="margin-top:1rem;"><b>Interprétation :</b> ≥ 7 = facilité, ≥ 4 = difficulté modérée, &lt; 4 = difficulté importante.</p>
+        </div>
+      `);
+    }
+
+    function selectUser() {
+      const id = document.getElementById('userSelect').value;
+      if(!id) return alert('Choisissez un profil.');
+      App.currentUser = App.getUsers().find(u=>u.id==id);
+      localStorage.setItem('ergoeval_lastUser', App.currentUser.id);
+      showDashboard();
+    }
+    function createUser() {
+      const nom = document.getElementById('newNom').value.trim();
+      const age = parseInt(document.getElementById('newAge').value);
+      const groupe = document.getElementById('newGroupe').value;
+      const niveau = document.getElementById('newNiveau').value;
+      const ordiUsage = document.getElementById('newOrdiUsage').value;
+      if(!nom || !age) return alert('Nom et âge requis.');
+      const users = App.getUsers();
+      const newUser = { id: Date.now().toString(), nom, age, groupe, niveau, ordiUsage };
+      users.push(newUser); App.saveUsers(users);
+      App.currentUser = newUser;
+      localStorage.setItem('ergoeval_lastUser', newUser.id);
+      showDashboard();
+    }
+    function logout() { App.currentUser = null; localStorage.removeItem('ergoeval_lastUser'); showLogin(); }
+    function openSettings() {
+      const s = App.settings;
+      App.render(`
+        <div class="top-nav"><span class="logo">Paramètres</span><button class="btn secondary" onclick="showDashboard()">Retour</button></div>
+        <div class="card">
+          <label>Thème : <select onchange="updateSetting('theme',this.value)">
+            <option value="light" ${s.theme=='light'?'selected':''}>Clair</option>
+            <option value="dark" ${s.theme=='dark'?'selected':''}>Sombre</option>
+          </select></label>
+          <label>Police : <select onchange="updateSetting('fontFamily',this.value)">
+            <option value="Inter" ${s.fontFamily=='Inter'?'selected':''}>Inter</option>
+            <option value="'OpenDyslexic', sans-serif" ${s.fontFamily.includes('OpenDyslexic')?'selected':''}>OpenDyslexic</option>
+          </select></label>
+          <label>Taille : <select onchange="updateSetting('fontSize',this.value)">
+            <option value="normal" ${s.fontSize=='normal'?'selected':''}>Normal</option>
+            <option value="large" ${s.fontSize=='large'?'selected':''}>Grand</option>
+            <option value="xlarge" ${s.fontSize=='xlarge'?'selected':''}>Très grand</option>
+          </select></label>
+          <label>Sons : <input type="checkbox" ${s.soundEnabled?'checked':''} onchange="updateSetting('soundEnabled',this.checked)"></label>
+        </div>
+      `);
+    }
+    function updateSetting(k,v) { if(k==='soundEnabled') v = v===true||v==='true'; App.settings[k]=v; App.saveSettings(); }
+
+    // ========== CATÉGORIES ET SCORES ==========
+    const CATEGORIES = {
+      'Logique': ['Suite logique', 'Cherche trouve', 'Points à relier'],
+      'Calcul': ['Calcul mental', 'Problèmes', 'Dictée de nombres'],
+      'Transcription': ['Copie de texte', 'Répétition de mot'],
+      'Frappe clavier': ['Double-clic / Clic droit', 'Glisser-déposer'],
+      'Visuo-spatiale': ['Pointage de cibles', 'Assemblage de formes', 'Tracé de précision', 'Identique'],
+      'Mémoire': ['Mémorisation visuelle']
+    };
+
+    function clampScore(value, min = 0, max = 10) {
+      const number = Number(value);
+      if(!Number.isFinite(number)) return min;
+      return Math.max(min, Math.min(max, number));
+    }
+
+    function scoreMpmNormatif(mpm, norme, fallbackReference = 20) {
+      const vitesse = Number(mpm) || 0;
+      if(norme && Number.isFinite(norme.moy) && Number.isFinite(norme.et) && norme.et > 0) {
+        // Moyenne du niveau = 7/10 ; chaque écart-type vaut environ 2 points.
+        const z = (vitesse - norme.moy) / norme.et;
+        return clampScore(7 + z * 2);
+      }
+      return clampScore((vitesse / fallbackReference) * 10);
+    }
+
+    function normaliserScore(epreuve, score) {
+      if(!score) return 0;
+      switch(epreuve) {
+        case 'Pointage de cibles': return clampScore(((score.precision||0)/10)*0.7 + Math.max(0,10-(parseFloat(score.totalSec)||60)/3)*0.3);
+        case 'Glisser-déposer': return clampScore(10 - (parseFloat(score.temps)||30)/5 - (score.erreurs||0)*2);
+        case 'Double-clic / Clic droit': return clampScore(10 - (parseFloat(score.temps)||20)/3);
+        case 'Dictée de nombres': return clampScore(((score.correct||0) / (score.total||10)) * 10);
+        case 'Calcul mental': return clampScore(((score.correct||0) / (score.total||8)) * 10);
+        case 'Problèmes': return clampScore(((score.correct||0) / (score.total||4)) * 10);
+        case 'Copie de texte': {
+          let mpm = Number(score.mpmEvic) || 0;
+          if(!mpm && score.caracteres && (score.tempsSecondes || score.temps)) {
+            const tempsCopie = Number(score.tempsSecondes || score.temps) || 0;
+            mpm = tempsCopie ? ((Number(score.caracteres) || 0) / tempsCopie * 60) / 6 : 0;
+          }
+          const niveau = score.niveau || App.currentUser?.niveau;
+          const vitesseScore = scoreMpmNormatif(mpm, NORMES_EVIC.copie?.[niveau], 20);
+          let penaliteQualite = 0;
+          if(score.precisionPct !== undefined) {
+            // La précision baisse la note, sans annuler totalement une bonne vitesse.
+            penaliteQualite = clampScore((100 - Number(score.precisionPct)) / 8, 0, 4);
+          } else {
+            // Compatibilité avec les anciennes sessions : évite les 0 artificiels dus aux mots non copiés.
+            const caracteres = Number(score.caracteres) || 0;
+            const approxMots = Math.max(1, caracteres / 6);
+            const tauxErreurs = (Number(score.erreurs) || 0) / approxMots;
+            penaliteQualite = clampScore(tauxErreurs * 2.5, 0, 3.5);
+          }
+          if(score.corrections !== undefined) penaliteQualite += clampScore((Number(score.corrections) || 0) / 25, 0, 1);
+          return clampScore(vitesseScore - penaliteQualite);
+        }
+        case 'Répétition de mot': {
+          let mpm = Number(score.mpmEvic) || 0;
+          if(!mpm && score.caracteres && (score.tempsSecondes || score.temps)) {
+            const tempsRep = Number(score.tempsSecondes || score.temps) || 0;
+            mpm = tempsRep ? ((Number(score.caracteres) || 0) / tempsRep * 60) / 6 : 0;
+          }
+          const niveau = score.niveau || App.currentUser?.niveau;
+          return scoreMpmNormatif(mpm, NORMES_EVIC.repetition?.[niveau], 15);
+        }
+        case 'Cherche trouve': return clampScore(((score.trouvees||0)/(score.cibles||25))*10 - (score.fausses||0)*1.5);
+        case 'Assemblage de formes': return clampScore(10 - (parseFloat(score.temps)||30)/15 - Math.abs(3-(score.formes||0))*2);
+        case 'Tracé de précision': return clampScore(10 - (parseFloat(score.temps)||30)/25 - (score.sorties||0)*1.5);
+        case 'Points à relier': return clampScore(10 - (parseFloat(score.temps)||30)/8 - (score.erreurs||0)*2);
+        case 'Identique': return clampScore(((score.correct||0) / (score.total||10)) * 10);
+        case 'Suite logique': return clampScore(10 - (parseFloat(score.temps)||30)/30 - (score.erreurs||0)*1.5);
+        case 'Mémorisation visuelle': {
+          const correct = Number(score.correct) || 0;
+          const errors = Number(score.errors) || 0;
+          const total = Number(score.total) || 6;
+          // On valorise les éléments correctement retrouvés ; les fausses sélections retirent peu de points.
+          return clampScore((correct / total) * 10 - errors * 0.5);
+        }
+        default: return 0;
+      }
+    }
+
+    function calculerNotes(sessions) {
+      const notesParEpreuve = {};
+      sessions.forEach(s => {
+        if(!notesParEpreuve[s.epreuve]) notesParEpreuve[s.epreuve] = {};
+        if(!notesParEpreuve[s.epreuve][s.mode]) notesParEpreuve[s.epreuve][s.mode] = [];
+        notesParEpreuve[s.epreuve][s.mode].push(normaliserScore(s.epreuve, s.score));
+      });
+      const moyenneEpreuve = {};
+      for(const [ep, modes] of Object.entries(notesParEpreuve)) {
+        const allNotes = [];
+        for(const notes of Object.values(modes)) allNotes.push(...notes);
+        if(allNotes.length) moyenneEpreuve[ep] = allNotes.reduce((a,b)=>a+b,0)/allNotes.length;
+      }
+      const categories = {};
+      for(const [cat, epreuves] of Object.entries(CATEGORIES)) {
+        let somme = 0, nb = 0;
+        epreuves.forEach(ep => { if(moyenneEpreuve[ep]!==undefined) { somme += moyenneEpreuve[ep]; nb++; } });
+        categories[cat] = nb > 0 ? somme / nb : 0;
+      }
+      return { parEpreuve: moyenneEpreuve, categories, notesParEpreuve };
+    }
+
+    function filterEvaluatedCategories(categories, parEpreuve) {
+      return Object.fromEntries(Object.entries(categories).filter(([cat]) =>
+        (CATEGORIES[cat] || []).some(epreuve => Object.prototype.hasOwnProperty.call(parEpreuve, epreuve))
+      ));
+    }
+
+    function categoryScoreNeedsRecommendation(categories, categoryName) {
+      return Object.prototype.hasOwnProperty.call(categories, categoryName) && categories[categoryName] < 4;
+    }
+
+
+    // ========== OUTILS RAPPORT / EXPORT / ACCÈS ==========
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+    }
+
+    function getAllSessionsRaw() {
+      const all = JSON.parse(localStorage.getItem('ergoeval_sessions') || '[]');
+      let changed = false;
+      all.forEach((session, index) => {
+        if(!session.id) {
+          session.id = `${session.date || Date.now()}_${session.userId || 'user'}_${index}`;
+          changed = true;
+        }
+        if(session.contextNote === undefined) { session.contextNote = ''; changed = true; }
+        if(session.excludedFromReport === undefined) { session.excludedFromReport = false; changed = true; }
+      });
+      if(changed) localStorage.setItem('ergoeval_sessions', JSON.stringify(all));
+      return all;
+    }
+
+    function saveAllSessionsRaw(sessions) {
+      localStorage.setItem('ergoeval_sessions', JSON.stringify(sessions));
+    }
+
+    function getUserById(id) {
+      return App.getUsers().find(u => String(u.id) === String(id)) || null;
+    }
+
+    function safeFileName(value) {
+      return String(value || 'export').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0,80) || 'export';
+    }
+
+    function downloadTextFile(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    }
+
+    function csvCell(value) {
+      const s = String(value ?? '');
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+
+    function sessionToCsvRow(s, user) {
+      const score = s.score || {};
+      const note = normaliserScore(s.epreuve, score);
+      return [
+        s.date || '',
+        user?.nom || '',
+        user?.age || '',
+        user?.niveau || '',
+        user?.groupe || '',
+        user?.ordiUsage || '',
+        s.epreuve || '',
+        s.mode || '',
+        Number.isFinite(note) ? note.toFixed(2) : '',
+        score.caracteres ?? '',
+        score.tempsSecondes ?? score.temps ?? score.totalSec ?? '',
+        score.mpmEvic ?? '',
+        score.erreurs ?? score.errors ?? '',
+        score.correct ?? '',
+        score.total ?? '',
+        score.precision ?? '',
+        s.sentiment || '',
+        s.contextNote || '',
+        s.excludedFromReport ? 'oui' : 'non',
+        JSON.stringify(score)
+      ].map(csvCell).join(';');
+    }
+
+    function sessionsToCSV(sessions) {
+      const headers = ['date','eleve','age','niveau','groupe','usage_ordinateur','epreuve','mode','note_sur_10','caracteres','temps_secondes','mpm_evic','erreurs','correct','total','precision','ressenti','note_contexte','exclu_du_rapport','score_json'];
+      const rows = sessions.map(s => sessionToCsvRow(s, getUserById(s.userId)));
+      return '\uFEFF' + headers.map(csvCell).join(';') + '\n' + rows.join('\n');
+    }
+
+    function exportCurrentUserCSV() {
+      if(!App.currentUser) return showLogin();
+      const sessions = App.getSessions(App.currentUser.id);
+      if(!sessions.length) return alert('Aucune donnée à exporter pour cet élève.');
+      downloadTextFile(`EViC_Adapt_historique_${safeFileName(App.currentUser.nom)}_${new Date().toISOString().slice(0,10)}.csv`, sessionsToCSV(sessions), 'text/csv');
+    }
+
+    function exportCurrentUserJSON() {
+      if(!App.currentUser) return showLogin();
+      const sessions = App.getSessions(App.currentUser.id);
+      if(!sessions.length) return alert('Aucune donnée à exporter pour cet élève.');
+      const data = { app:'EViC-Adapt', version:'export-2', exportedAt:new Date().toISOString(), user:App.currentUser, sessions, observateur:getObserverData(App.currentUser.id) };
+      downloadTextFile(`EViC_Adapt_historique_${safeFileName(App.currentUser.nom)}_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data, null, 2), 'application/json');
+    }
+
+    function exportAllCSV() {
+      const sessions = getAllSessionsRaw();
+      if(!sessions.length) return alert('Aucune session enregistrée.');
+      downloadTextFile(`EViC_Adapt_historique_complet_${new Date().toISOString().slice(0,10)}.csv`, sessionsToCSV(sessions), 'text/csv');
+    }
+
+    function exportAllJSON() {
+      const data = { app:'EViC-Adapt', version:'export-2', exportedAt:new Date().toISOString(), users:App.getUsers(), sessions:getAllSessionsRaw(), observateurs:getAllObserverData(), settings:App.settings };
+      downloadTextFile(`EViC_Adapt_sauvegarde_complete_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data, null, 2), 'application/json');
+    }
+
+    function openLocalBackupPicker() {
+      const input = document.getElementById('localBackupInput');
+      if(input) input.click();
+    }
+
+    function importSessionsJSONFromInput(input) {
+      const file = input.files && input.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          const incomingUsers = Array.isArray(data.users) ? data.users : (data.user ? [data.user] : []);
+          const incomingSessions = Array.isArray(data.sessions) ? data.sessions : (Array.isArray(data) ? data : []);
+          if(!incomingSessions.length && !incomingUsers.length) throw new Error('Format JSON non reconnu.');
+
+          const users = App.getUsers();
+          const userIds = new Set(users.map(u => String(u.id)));
+          incomingUsers.forEach(u => {
+            if(u && u.id && !userIds.has(String(u.id))) { users.push(u); userIds.add(String(u.id)); }
+          });
+          App.saveUsers(users);
+
+          if(data.observateurs && typeof data.observateurs === 'object') {
+            const currentObs = getAllObserverData();
+            saveAllObserverData({ ...currentObs, ...data.observateurs });
+          } else if(data.observateur && data.user && data.user.id) {
+            const currentObs = getAllObserverData();
+            currentObs[String(data.user.id)] = data.observateur;
+            saveAllObserverData(currentObs);
+          }
+
+          const all = getAllSessionsRaw();
+          const keys = new Set(all.map(s => String(s.id || '') + '|' + String(s.date || '') + '|' + String(s.userId || '') + '|' + String(s.epreuve || '')));
+          let added = 0;
+          incomingSessions.forEach(s => {
+            if(!s || !s.epreuve) return;
+            if(!s.id) s.id = Date.now().toString() + '_' + Math.random().toString(36).slice(2,8);
+            const key = String(s.id || '') + '|' + String(s.date || '') + '|' + String(s.userId || '') + '|' + String(s.epreuve || '');
+            if(!keys.has(key)) { all.push(s); keys.add(key); added++; }
+          });
+          localStorage.setItem('ergoeval_sessions', JSON.stringify(all));
+          alert(`${added} session(s) importée(s).`);
+          showDataTools();
+        } catch(e) {
+          alert('Import impossible : ' + e.message);
+        }
+      };
+      reader.onloadend = () => { input.value = ''; };
+      reader.readAsText(file);
+    }
+
+    function showDataTools() {
+      if(!App.currentUser) return showLogin();
+      const currentSessions = App.getSessions(App.currentUser.id).length;
+      const allSessions = getAllSessionsRaw().length;
+      App.render(`
+        <div class="top-nav"><span class="logo">💾 Données</span><button class="btn secondary" onclick="showDashboard()">Retour</button></div>
+        <div class="card">
+          <h2>Sauvegarde locale et exports</h2>
+          <p>Les bilans sont déjà sauvegardés localement dans ce navigateur via <code>localStorage</code>.</p>
+          <p>Élève actif : <b>${escapeHtml(App.currentUser.nom)}</b> — ${currentSessions} session(s). Historique complet : ${allSessions} session(s).</p>
+          <div class="toolbar-actions">
+            <button class="btn success" onclick="exportCurrentUserCSV()">⬇️ Export CSV de cet élève</button>
+            <button class="btn success" onclick="exportCurrentUserJSON()">⬇️ Export JSON de cet élève</button>
+            <button class="btn secondary" onclick="exportAllCSV()">⬇️ Export CSV complet</button>
+            <button class="btn secondary" onclick="exportAllJSON()">⬇️ Export JSON complet</button>
+          </div>
+          <hr style="margin:1rem 0">
+          <h3>Ouvrir une sauvegarde locale</h3>
+          <p>Sélectionne un fichier <b>JSON</b> déjà enregistré sur ton ordinateur pour restaurer des profils, des sessions et les observations de l’observateur.</p>
+          <input id="localBackupInput" type="file" accept=".json,application/json" onchange="importSessionsJSONFromInput(this)" style="display:none;">
+          <button class="btn warning" onclick="openLocalBackupPicker()">📂 Ouvrir un fichier JSON local</button>
+          <p style="font-size:0.9rem; opacity:0.8; margin-top:0.75rem;">Pour des raisons de sécurité, le navigateur ne peut pas ouvrir automatiquement un fichier : tu dois le choisir manuellement dans la fenêtre qui s’affiche. Le JSON permet de restaurer l’historique sur un autre ordinateur. Le CSV sert surtout pour Excel ou LibreOffice.</p>
+        </div>
+      `);
+    }
+
+    function buildConclusion(categories, sessions) {
+      const done = Object.keys(sessions.reduce((acc, session) => { acc[session.epreuve] = true; return acc; }, {})).length;
+      const faibles = Object.entries(categories).filter(([_, note]) => note > 0 && note < 4).map(([cat]) => cat);
+      const fragiles = Object.entries(categories).filter(([_, note]) => note >= 4 && note < 7).map(([cat]) => cat);
+      if(!done) return 'Aucune conclusion possible : aucune épreuve n’a été retenue dans le rapport.';
+      if(faibles.length) return `Le bilan met en évidence des difficultés importantes dans les domaines suivants : ${faibles.join(', ')}. Des adaptations ciblées sont à envisager, en tenant compte des observations de l’adulte, du contexte scolaire et des conditions de passation.`;
+      if(fragiles.length) return `Le bilan montre des fragilités dans les domaines suivants : ${fragiles.join(', ')}. Les résultats doivent être mis en lien avec les observations qualitatives et les besoins fonctionnels de l’élève.`;
+      return 'Les résultats retenus dans ce rapport ne mettent pas en évidence de difficulté majeure dans les domaines évalués. Une poursuite de l’observation reste recommandée selon les besoins scolaires.';
+    }
+
+    function buildAutoSummary(categories, parEpreuve, sessions, observerData, excludedCount, totalSessions) {
+      const epreuvesRealisees = [...new Set(sessions.map(session => session.epreuve))];
+      const forces = Object.entries(categories).filter(([_, note]) => note >= 7).map(([cat]) => cat);
+      const fragilites = Object.entries(categories).filter(([_, note]) => note >= 4 && note < 7).map(([cat]) => cat);
+      const difficultes = Object.entries(categories).filter(([_, note]) => note > 0 && note < 4).map(([cat]) => cat);
+      const faiblesEpreuves = Object.entries(parEpreuve).filter(([_, note]) => note < 4).sort((a,b)=>a[1]-b[1]).slice(0,3).map(([ep, note]) => `${ep} (${note.toFixed(1)}/10)`);
+      const comprehension = (observerData?.comprehension || []).filter(value => value && value !== 'Non observé');
+      const clavier = (observerData?.globalKeyboard || []).filter(value => value && value !== 'Non observé');
+
+      const points = [];
+      points.push(`${epreuvesRealisees.length} épreuve(s) retenue(s) dans ce rapport sur ${totalSessions} session(s) enregistrée(s).`);
+      if(excludedCount) points.push(`${excludedCount} session(s) ont été exclue(s) volontairement du rapport, sans être supprimée(s) de l’historique.`);
+      if(forces.length) points.push(`Points d’appui principaux : ${forces.join(', ')}.`);
+      if(fragilites.length) points.push(`Fragilités à surveiller : ${fragilites.join(', ')}.`);
+      if(difficultes.length) points.push(`Difficultés importantes repérées : ${difficultes.join(', ')}.`);
+      if(faiblesEpreuves.length) points.push(`Épreuves les plus fragiles : ${faiblesEpreuves.join(', ')}.`);
+      if(comprehension.length) points.push(`Compréhension des consignes : ${comprehension.join(', ')}.`);
+      if(clavier.length) points.push(`Utilisation globale du clavier : ${clavier.join(', ')}.`);
+      if(points.length === 1) points.push('Aucune alerte majeure n’apparaît dans les scores retenus ; l’interprétation doit rester croisée avec les observations en situation réelle.');
+      return `<ul>${points.map(point => `<li>${escapeHtml(point)}</li>`).join('')}</ul>`;
+    }
+
+    function formatScoreDetailsWithSession(session) {
+      let details = formatScoreDetails(session.score);
+      if((session.contextNote || '').trim()) {
+        details += `${details ? '<br>' : ''}<b>Note contexte :</b><br>${escapeHtml(session.contextNote).replace(/\n/g, '<br>')}`;
+      }
+      return details;
+    }
+
+    function formatScoreDetails(score) {
+      if(!score) return '';
+      const parts = [];
+      if(score.mpmEvic !== undefined) parts.push(`MPM EVIC : ${Number(score.mpmEvic).toFixed(1)}`);
+      if(score.caracteres !== undefined) parts.push(`Caractères : ${score.caracteres}`);
+      if(score.tempsSecondes !== undefined) parts.push(`Temps : ${Number(score.tempsSecondes).toFixed(1)} s`);
+      if(score.temps !== undefined) parts.push(`Temps : ${score.temps} s`);
+      if(score.totalSec !== undefined) parts.push(`Temps : ${score.totalSec} s`);
+      if(score.erreurs !== undefined) parts.push(`Erreurs : ${score.erreurs}`);
+      if(score.erreursTexte !== undefined) parts.push(`Erreurs de copie : ${score.erreursTexte}`);
+      if(score.corrections !== undefined) parts.push(`Corrections / effacements : ${score.corrections}`);
+      if(score.motsSaisis !== undefined) parts.push(`Mots saisis : ${score.motsSaisis}`);
+      if(score.errors !== undefined) parts.push(`Fausses sélections : ${score.errors}`);
+      if(score.correct !== undefined && score.total !== undefined) parts.push(`Correct : ${score.correct}/${score.total}`);
+      if(score.precisionPct !== undefined) parts.push(`Précision copie : ${Number(score.precisionPct).toFixed(1)}%`);
+      if(score.precision !== undefined) parts.push(`Précision : ${score.precision}%`);
+      if(score.sorties !== undefined) parts.push(`Sorties : ${score.sorties}`);
+      if(score.trouvees !== undefined && score.cibles !== undefined) parts.push(`Cibles : ${score.trouvees}/${score.cibles}`);
+      if(score.fausses !== undefined) parts.push(`Fausses réponses : ${score.fausses}`);
+      if(!parts.length) return escapeHtml(JSON.stringify(score));
+      return parts.map(escapeHtml).join('<br>');
+    }
+
+
+    // ========== GESTION DE L'HISTORIQUE ET FILTRE DU RAPPORT ==========
+    function jsArg(value) {
+      return JSON.stringify(String(value ?? '')).replace(/"/g, '&quot;');
+    }
+
+    function getKnownEpreuveNames() {
+      return [
+        'Pointage de cibles','Glisser-déposer','Double-clic / Clic droit','Dictée de nombres','Calcul mental','Problèmes','Copie de texte','Répétition de mot','Cherche trouve','Assemblage de formes','Tracé de précision','Points à relier','Identique','Suite logique','Mémorisation visuelle'
+      ];
+    }
+
+    function getSessionById(sessionId) {
+      return getAllSessionsRaw().find(session => String(session.id) === String(sessionId)) || null;
+    }
+
+    function updateSessionById(sessionId, updater) {
+      const all = getAllSessionsRaw();
+      const index = all.findIndex(session => String(session.id) === String(sessionId));
+      if(index === -1) return false;
+      updater(all[index]);
+      saveAllSessionsRaw(all);
+      return true;
+    }
+
+    function deleteSessionById(sessionId) {
+      const session = getSessionById(sessionId);
+      if(!session) return alert('Session introuvable.');
+      if(!confirm(`Supprimer définitivement cette session ?\n\n${session.epreuve} - ${new Date(session.date).toLocaleString()}`)) return;
+      const all = getAllSessionsRaw().filter(item => String(item.id) !== String(sessionId));
+      saveAllSessionsRaw(all);
+      showDashboard();
+    }
+
+    function toDateTimeLocal(value) {
+      const date = value ? new Date(value) : new Date();
+      if(Number.isNaN(date.getTime())) return '';
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0,16);
+    }
+
+    function renderSessionHistoryItem(session) {
+      const note = normaliserScore(session.epreuve, session.score);
+      const excluded = !!session.excludedFromReport;
+      const noteHtml = Number.isFinite(note) ? `${note.toFixed(1)}/10` : '—';
+      return `<div class="session-item ${excluded ? 'excluded' : ''}">
+        <div class="session-title">
+          <div>
+            <b>${escapeHtml(session.epreuve)}</b> <span class="small-muted">${escapeHtml(session.mode || '')}</span><br>
+            <span class="small-muted">${new Date(session.date).toLocaleString()} — Note : ${noteHtml}${session.sentiment ? ' — Ressenti : ' + escapeHtml(session.sentiment) : ''}</span>
+            ${excluded ? '<br><span class="score-badge" style="background:var(--warning);">Exclue du rapport</span>' : ''}
+          </div>
+        </div>
+        ${(session.contextNote || '').trim() ? `<p class="small-muted"><b>Note contexte :</b> ${escapeHtml(session.contextNote)}</p>` : ''}
+        <div class="session-actions">
+          <button class="btn secondary" onclick="showEditSession(${jsArg(session.id)})">Modifier</button>
+          <button class="btn warning" onclick="toggleSessionReportInclusion(${jsArg(session.id)})">${excluded ? 'Réintégrer au rapport' : 'Exclure du rapport'}</button>
+          <button class="btn secondary" onclick="deleteSessionById(${jsArg(session.id)})">Supprimer</button>
+        </div>
+      </div>`;
+    }
+
+    function showEditSession(sessionId) {
+      const session = getSessionById(sessionId);
+      if(!session) return alert('Session introuvable.');
+      const epreuveOptions = getKnownEpreuveNames().map(name => `<option value="${escapeHtml(name)}" ${name===session.epreuve?'selected':''}>${escapeHtml(name)}</option>`).join('');
+      App.render(`
+        <div class="top-nav"><span class="logo">Modifier une session</span><button class="btn secondary" onclick="showDashboard()">Retour</button></div>
+        <div class="card">
+          <h2>Modifier l’épreuve enregistrée</h2>
+          <p class="small-muted">Ces modifications concernent uniquement l’historique et le rapport. Elles ne changent pas le fonctionnement des épreuves.</p>
+          <label>Épreuve</label>
+          <select id="editSessionEpreuve" style="width:100%;margin:0.35rem 0 0.8rem;">${epreuveOptions}</select>
+          <label>Mode</label>
+          <select id="editSessionMode" style="width:100%;margin:0.35rem 0 0.8rem;">
+            <option value="numerique" ${session.mode==='numerique'?'selected':''}>Numérique</option>
+            <option value="papier" ${session.mode==='papier'?'selected':''}>Papier</option>
+            <option value="evaluation" ${session.mode==='evaluation'?'selected':''}>Évaluation</option>
+            <option value="entrainement" ${session.mode==='entrainement'?'selected':''}>Entraînement</option>
+          </select>
+          <label>Date / heure de passation</label>
+          <input id="editSessionDate" type="datetime-local" value="${toDateTimeLocal(session.date)}" style="width:100%;margin:0.35rem 0 0.8rem;">
+          <label>Note de contexte</label>
+          <textarea id="editSessionNote" rows="4" style="width:100%;margin:0.35rem 0 0.8rem;" placeholder="Exemple : élève fatigué, consigne relue, interruption pendant l’épreuve...">${escapeHtml(session.contextNote || '')}</textarea>
+          <label class="check-option" style="margin:0.5rem 0 1rem;"><input id="editSessionExcluded" type="checkbox" ${session.excludedFromReport?'checked':''}> Exclure cette session du rapport détaillé sans la supprimer</label>
+          <div class="toolbar-actions">
+            <button class="btn success" onclick="saveSessionEdit(${jsArg(session.id)})">Enregistrer</button>
+            <button class="btn warning" onclick="deleteSessionById(${jsArg(session.id)})">Supprimer cette session</button>
+            <button class="btn secondary" onclick="showDashboard()">Annuler</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function saveSessionEdit(sessionId) {
+      const ok = updateSessionById(sessionId, session => {
+        session.epreuve = document.getElementById('editSessionEpreuve').value;
+        session.mode = document.getElementById('editSessionMode').value;
+        const dateValue = document.getElementById('editSessionDate').value;
+        if(dateValue) session.date = new Date(dateValue).toISOString();
+        session.contextNote = document.getElementById('editSessionNote').value.trim();
+        session.excludedFromReport = document.getElementById('editSessionExcluded').checked;
+      });
+      if(!ok) return alert('Session introuvable.');
+      showDashboard();
+    }
+
+    function toggleSessionReportInclusion(sessionId) {
+      const ok = updateSessionById(sessionId, session => {
+        session.excludedFromReport = !session.excludedFromReport;
+      });
+      if(!ok) return alert('Session introuvable.');
+      showDashboard();
+    }
+
+    function getReportFilterKey(userId = App.currentUser?.id) {
+      return `evic_report_filter_${userId}`;
+    }
+
+    function uniqueEpreuveNamesFromSessions(sessions) {
+      return [...new Set(sessions.map(session => session.epreuve).filter(Boolean))];
+    }
+
+    function getSelectedReportEpreuves(userId, availableNames) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(getReportFilterKey(userId)) || 'null');
+        if(Array.isArray(saved) && saved.length) {
+          const selected = saved.filter(name => availableNames.includes(name));
+          return selected.length ? selected : availableNames;
+        }
+      } catch(error) {}
+      return availableNames;
+    }
+
+    function buildReportFilterHtml(availableNames, selectedNames, excludedCount) {
+      if(!availableNames.length) return '';
+      const options = availableNames.map(name => `
+        <label class="check-option"><input type="checkbox" class="report-filter-choice" value="${escapeHtml(name)}" ${selectedNames.includes(name)?'checked':''}> ${escapeHtml(name)}</label>
+      `).join('');
+      return `<div class="filter-panel no-print">
+        <h3>Épreuves à inclure dans le rapport</h3>
+        <p class="small-muted">Décoche les épreuves que tu ne veux pas afficher dans ce rapport. Les sessions exclues individuellement dans l’historique ne sont jamais intégrées.</p>
+        ${excludedCount ? `<p class="small-muted"><b>${excludedCount}</b> session(s) exclue(s) depuis l’historique.</p>` : ''}
+        <div class="check-list">${options}</div>
+        <div class="toolbar-actions">
+          <button class="btn success" onclick="saveReportFilterFromForm()">Actualiser le rapport</button>
+          <button class="btn secondary" onclick="resetReportFilter()">Tout inclure</button>
+        </div>
+      </div>`;
+    }
+
+    function saveReportFilterFromForm() {
+      if(!App.currentUser) return showLogin();
+      const selected = [...document.querySelectorAll('.report-filter-choice:checked')].map(el => el.value);
+      if(!selected.length) return alert('Sélectionne au moins une épreuve à inclure dans le rapport.');
+      localStorage.setItem(getReportFilterKey(App.currentUser.id), JSON.stringify(selected));
+      showRapport();
+    }
+
+    function resetReportFilter() {
+      if(!App.currentUser) return showLogin();
+      localStorage.removeItem(getReportFilterKey(App.currentUser.id));
+      showRapport();
+    }
+
+    // ========== QUESTIONNAIRE OBSERVATEUR ==========
+    const OBSERVER_STORAGE_KEY = 'ergoeval_observateur';
+
+    const OBS_KEYBOARD_CHOICES = [
+      '1 doigt / 1 main',
+      'Plusieurs doigts / 1 main',
+      '1 doigt / 2 mains',
+      'Plusieurs doigts / 2 mains',
+      'Utilisation variable',
+      'Non observé'
+    ];
+
+    const OBS_EPREEUVES = [
+      { id:'pointage', nom:'Pointage de cibles', question:'Pendant l’épreuve, l’élève :', choices:['Pointe les cibles avec précision','Pointe les cibles avec lenteur','Clique parfois à côté des cibles','Présente une difficulté importante de pointage','Non observé'] },
+      { id:'glisser', nom:'Glisser-déposer', question:'Pendant l’épreuve, l’élève :', choices:['Réalise le glisser-déposer facilement','Réalise l’action avec lenteur','Lâche l’objet avant la zone cible','A besoin d’aide pour maintenir ou déplacer l’objet','Non observé'] },
+      { id:'doubleclic', nom:'Double-clic / Clic droit', question:'Pendant l’épreuve, l’élève :', choices:['Réalise correctement le double-clic et/ou le clic droit','Hésite entre les différents types de clics','Réalise l’action avec lenteur','N’arrive pas à réaliser l’action sans aide','Non observé'] },
+      { id:'dictee', nom:'Dictée de nombres', question:'Pendant l’épreuve, l’élève :', choices:['Saisit les nombres facilement','Cherche les touches numériques','Fait des erreurs de frappe','A besoin d’aide pour saisir les nombres','Non observé'] },
+      { id:'calcul', nom:'Calcul mental', question:'Pendant l’épreuve, l’élève :', choices:['Répond en autonomie','A besoin d’un temps de réflexion important','Demande confirmation avant de répondre','A besoin d’aide pour poursuivre','Non observé'] },
+      { id:'problemes', nom:'Problèmes', question:'Pendant l’épreuve, l’élève :', choices:['Résout le problème en autonomie','Hésite sur la démarche à utiliser','Se perd dans les informations de l’énoncé','A besoin d’aide pour répondre','Non observé'] },
+      { id:'copie', nom:'Copie de texte', keyboard:true, question:'Pendant la copie, l’élève :', choices:['Copie de façon fluide','Copie lentement mais reste organisé','Alterne difficilement entre modèle, clavier et écran','Fait de nombreuses corrections ou effacements','Non observé'] },
+      { id:'repetition', nom:'Répétition de mot', keyboard:true, question:'Pendant l’épreuve, l’élève :', choices:['Répète le mot de façon régulière','Ralentit au fil de l’épreuve','Fait de nombreuses erreurs de frappe','Perd le rythme','Non observé'] },
+      { id:'barrage', nom:'Cherche trouve', question:'Pendant l’épreuve, l’élève :', choices:['Explore l’écran de façon organisée','Explore l’écran lentement','Oublie certaines zones de l’écran','Clique sur des éléments non demandés','Non observé'] },
+      { id:'assemblage', nom:'Assemblage de formes', question:'Pendant l’épreuve, l’élève :', choices:['Reproduit le modèle de façon organisée','Place les formes avec hésitation','A des difficultés à organiser les formes dans l’espace','A besoin d’aide pour comprendre le modèle','Non observé'] },
+      { id:'trace', nom:'Tracé de précision', question:'Pendant l’épreuve, l’élève :', choices:['Suit le tracé avec précision','Suit le tracé avec lenteur','Sort souvent du chemin','Présente des difficultés de contrôle du geste','Non observé'] },
+      { id:'points', nom:'Points à relier', question:'Pendant l’épreuve, l’élève :', choices:['Relie les points dans l’ordre','Hésite dans l’ordre des points','Saute des points ou se trompe d’ordre','A besoin d’aide pour poursuivre','Non observé'] },
+      { id:'perception', nom:'Identique', question:'Pendant l’épreuve, l’élève :', choices:['Repère facilement l’image identique','Hésite entre plusieurs réponses','Confond des images proches','Répond rapidement sans vérifier','Non observé'] },
+      { id:'trail', nom:'Suite logique', question:'Pendant l’épreuve, l’élève :', choices:['Maintient l’alternance chiffre / lettre jusqu’à la fin','A besoin d’un rappel ponctuel','Oublie l’alternance chiffre / lettre','Se trompe régulièrement dans l’ordre','Non observé'] },
+      { id:'memoire', nom:'Mémorisation visuelle', question:'Pendant l’épreuve, l’élève :', choices:['Mémorise et retrouve les éléments facilement','Retrouve une partie des éléments','Confond certains éléments','Sélectionne des éléments non présentés','Non observé'] }
+    ];
+
+    const OBS_COMPREHENSION_CHOICES = [
+      'Passe les épreuves en autonomie, sans aide ni reformulation',
+      'A besoin qu’on lui lise certaines consignes',
+      'A besoin qu’on lui reformule certaines consignes',
+      'A besoin d’un exemple avant de commencer certaines épreuves',
+      'A besoin d’un rappel de la consigne pendant certaines épreuves',
+      'A besoin d’un accompagnement régulier',
+      'Non observé'
+    ];
+
+    const OBS_APPUI_CHOICES = [
+      'Bonne autonomie',
+      'Bonne compréhension des consignes',
+      'Bonne motivation',
+      'Bonne précision de frappe',
+      'Bonne utilisation de la souris / du pavé tactile',
+      'Bonne exploration visuelle',
+      'Bonne mémorisation',
+      'Bonne persévérance',
+      'Autre'
+    ];
+
+    const OBS_DIFFICULTE_CHOICES = [
+      'Besoin de lecture ou reformulation des consignes',
+      'Difficulté à démarrer seul',
+      'Frappe lente',
+      'Frappe imprécise',
+      'Nombreuses corrections / effacements',
+      'Difficulté de pointage',
+      'Difficulté de glisser-déposer',
+      'Difficulté de repérage visuel',
+      'Difficulté de mémorisation',
+      'Fatigabilité',
+      'Découragement',
+      'Autre'
+    ];
+
+    function defaultObserverData() {
+      const epreuves = {};
+      OBS_EPREEUVES.forEach(ep => { epreuves[ep.id] = { nom: ep.nom, modeFrappe: [], choix: [], observation: '' }; });
+      return {
+        updatedAt: '',
+        comprehension: [],
+        comprehensionObservation: '',
+        epreuves,
+        globalKeyboard: [],
+        globalKeyboardObservation: '',
+        pointsAppui: [],
+        difficultes: [],
+        remarqueGlobale: '',
+        adaptations: ''
+      };
+    }
+
+    function getAllObserverData() {
+      return JSON.parse(localStorage.getItem(OBSERVER_STORAGE_KEY) || '{}');
+    }
+
+    function saveAllObserverData(data) {
+      localStorage.setItem(OBSERVER_STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function getObserverData(userId = App.currentUser?.id) {
+      const all = getAllObserverData();
+      const saved = all[String(userId)] || {};
+      const base = defaultObserverData();
+      const merged = { ...base, ...saved, epreuves: { ...base.epreuves, ...(saved.epreuves || {}) } };
+      OBS_EPREEUVES.forEach(ep => {
+        merged.epreuves[ep.id] = { nom: ep.nom, modeFrappe: [], choix: [], observation: '', ...(merged.epreuves[ep.id] || {}) };
+      });
+      return merged;
+    }
+
+    function saveObserverData(userId, data) {
+      const all = getAllObserverData();
+      all[String(userId)] = { ...data, userId:String(userId), updatedAt:new Date().toISOString() };
+      saveAllObserverData(all);
+    }
+
+    function deleteObserverDataForCurrentUser() {
+      if(!App.currentUser) return showLogin();
+      if(!confirm('Effacer le questionnaire observateur de cet élève ?')) return;
+      const all = getAllObserverData();
+      delete all[String(App.currentUser.id)];
+      saveAllObserverData(all);
+      showObservateurQuestionnaire();
+    }
+
+    function hasObserverData(data) {
+      if(!data) return false;
+      if((data.comprehension || []).length || (data.comprehensionObservation || '').trim()) return true;
+      if((data.globalKeyboard || []).length || (data.globalKeyboardObservation || '').trim()) return true;
+      if((data.pointsAppui || []).length || (data.difficultes || []).length) return true;
+      if((data.remarqueGlobale || '').trim() || (data.adaptations || '').trim()) return true;
+      return Object.values(data.epreuves || {}).some(v => (v.modeFrappe || []).length || (v.choix || []).length || (v.observation || '').trim());
+    }
+
+    function checkedAttr(values, value) {
+      return Array.isArray(values) && values.includes(value) ? 'checked' : '';
+    }
+
+    function checkboxGroup(name, choices, selected) {
+      return `<div class="check-list">${choices.map(choice => `<label class="check-option"><input type="checkbox" name="${name}" value="${escapeHtml(choice)}" ${checkedAttr(selected, choice)}> <span>${escapeHtml(choice)}</span></label>`).join('')}</div>`;
+    }
+
+    function checkedValues(name) {
+      return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(el => el.value);
+    }
+
+    function textValue(id) {
+      return document.getElementById(id)?.value.trim() || '';
+    }
+
+    function showObservateurQuestionnaire() {
+      if(!App.currentUser) return showLogin();
+      const data = getObserverData(App.currentUser.id);
+      const epreuveBlocks = OBS_EPREEUVES.map(ep => {
+        const saved = data.epreuves[ep.id] || { modeFrappe: [], choix: [], observation: '' };
+        return `
+          <div class="observer-section">
+            <h3>${escapeHtml(ep.nom)}</h3>
+            ${ep.keyboard ? `<p><b>Mode de frappe observé :</b></p>${checkboxGroup('obs_' + ep.id + '_keyboard', OBS_KEYBOARD_CHOICES, saved.modeFrappe)}` : ''}
+            <p><b>${escapeHtml(ep.question)}</b></p>
+            ${checkboxGroup('obs_' + ep.id, ep.choices, saved.choix)}
+            <label>Observation si nécessaire :</label>
+            <textarea id="obs_${ep.id}_text" rows="2" style="width:100%;" placeholder="Observation facultative...">${escapeHtml(saved.observation || '')}</textarea>
+          </div>`;
+      }).join('');
+
+      App.render(`
+        <div class="top-nav">
+          <span class="logo">👀 Questionnaire observateur</span>
+          <button class="btn success" onclick="saveObservateurQuestionnaire()">💾 Enregistrer</button>
+          <button class="btn secondary" onclick="showDashboard()">Retour</button>
+        </div>
+        <div class="card">
+          <h2>Questionnaire observateur</h2>
+          <p class="observer-note">Cette partie est séparée des épreuves. Elle est destinée à l’adulte observateur et sera intégrée automatiquement au rapport détaillé de l’élève.</p>
+          <p><b>Élève :</b> ${escapeHtml(App.currentUser.nom)} ${App.currentUser.niveau ? `— ${escapeHtml(App.currentUser.niveau)}` : ''}</p>
+
+          <div class="observer-section">
+            <h3>1. Compréhension globale des consignes</h3>
+            <p><b>Pendant l’ensemble des épreuves, l’élève :</b></p>
+            ${checkboxGroup('obs_comprehension', OBS_COMPREHENSION_CHOICES, data.comprehension)}
+            <label>Observation sur la compréhension des consignes :</label>
+            <textarea id="obs_comprehension_text" rows="3" style="width:100%;" placeholder="Observation facultative...">${escapeHtml(data.comprehensionObservation || '')}</textarea>
+          </div>
+
+          <h2>Observations par épreuve</h2>
+          ${epreuveBlocks}
+
+          <div class="observer-section">
+            <h3>Synthèse générale de l’observateur</h3>
+            <p><b>Utilisation globale du clavier :</b></p>
+            ${checkboxGroup('obs_global_keyboard', OBS_KEYBOARD_CHOICES, data.globalKeyboard)}
+            <label>Observation générale sur la frappe clavier :</label>
+            <textarea id="obs_global_keyboard_text" rows="3" style="width:100%;" placeholder="Observation facultative...">${escapeHtml(data.globalKeyboardObservation || '')}</textarea>
+
+            <p style="margin-top:1rem;"><b>Points d’appui observés :</b></p>
+            ${checkboxGroup('obs_points_appui', OBS_APPUI_CHOICES, data.pointsAppui)}
+
+            <p style="margin-top:1rem;"><b>Difficultés principales observées :</b></p>
+            ${checkboxGroup('obs_difficultes', OBS_DIFFICULTE_CHOICES, data.difficultes)}
+
+            <label>Remarque globale sur la passation :</label>
+            <textarea id="obs_remarque_globale" rows="3" style="width:100%;" placeholder="Observation facultative...">${escapeHtml(data.remarqueGlobale || '')}</textarea>
+
+            <label>Adaptations à envisager :</label>
+            <textarea id="obs_adaptations" rows="3" style="width:100%;" placeholder="Exemples : clavier avec repères visuels, consignes reformulées, temps supplémentaire...">${escapeHtml(data.adaptations || '')}</textarea>
+          </div>
+
+          <div class="toolbar-actions">
+            <button class="btn success" onclick="saveObservateurQuestionnaire()">💾 Enregistrer le questionnaire</button>
+            <button class="btn" onclick="showRapport()">📊 Voir le rapport détaillé</button>
+            <button class="btn secondary" onclick="deleteObserverDataForCurrentUser()">🗑️ Effacer le questionnaire</button>
+            <button class="btn secondary" onclick="showDashboard()">Retour tableau de bord</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function saveObservateurQuestionnaire() {
+      if(!App.currentUser) return showLogin();
+      const data = defaultObserverData();
+      data.comprehension = checkedValues('obs_comprehension');
+      data.comprehensionObservation = textValue('obs_comprehension_text');
+      OBS_EPREEUVES.forEach(ep => {
+        data.epreuves[ep.id] = {
+          nom: ep.nom,
+          modeFrappe: ep.keyboard ? checkedValues('obs_' + ep.id + '_keyboard') : [],
+          choix: checkedValues('obs_' + ep.id),
+          observation: textValue('obs_' + ep.id + '_text')
+        };
+      });
+      data.globalKeyboard = checkedValues('obs_global_keyboard');
+      data.globalKeyboardObservation = textValue('obs_global_keyboard_text');
+      data.pointsAppui = checkedValues('obs_points_appui');
+      data.difficultes = checkedValues('obs_difficultes');
+      data.remarqueGlobale = textValue('obs_remarque_globale');
+      data.adaptations = textValue('obs_adaptations');
+      saveObserverData(App.currentUser.id, data);
+      alert('Questionnaire observateur enregistré. Il sera intégré au rapport détaillé.');
+      showDashboard();
+    }
+
+    function formatObserverText(value) {
+      return escapeHtml(value || '').replace(/\n/g, '<br>');
+    }
+
+    function observerList(values) {
+      if(!values || !values.length) return '<em>Non renseigné</em>';
+      return `<ul>${values.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul>`;
+    }
+
+    function observerDetailsForEpreuve(data, epreuveName) {
+      if(!data || !data.epreuves) return '<em>Non renseigné</em>';
+      const aliases = {
+        'Barrage visuel': 'Cherche trouve',
+        'Trail Making': 'Suite logique',
+        'Perception visuelle': 'Identique'
+      };
+      const nomRecherche = aliases[epreuveName] || epreuveName;
+      const ep = OBS_EPREEUVES.find(item => item.nom === nomRecherche || item.nom === epreuveName);
+      if(!ep) return '<em>Non renseigné</em>';
+      const item = data.epreuves?.[ep.id];
+      if(!item) return '<em>Non renseigné</em>';
+
+      const details = [];
+      if((item.modeFrappe || []).length) details.push(`<b>Frappe :</b> ${escapeHtml(item.modeFrappe.join(', '))}`);
+      if((item.choix || []).length) details.push(`<b>Observation :</b> ${escapeHtml(item.choix.join(', '))}`);
+      if((item.observation || '').trim()) details.push(`<b>Commentaire :</b><br>${formatObserverText(item.observation)}`);
+      return details.length ? details.join('<br>') : '<em>Non renseigné</em>';
+    }
+
+    function buildObserverReportHtml(data) {
+      if(!hasObserverData(data)) {
+        return `<div class="report-section"><h2>👀 Questionnaire observateur</h2><p>Aucun questionnaire observateur renseigné.</p></div>`;
+      }
+
+      const hasComprehension = (data.comprehension || []).length || (data.comprehensionObservation || '').trim();
+      const hasSynthese = (data.globalKeyboard || []).length || (data.globalKeyboardObservation || '').trim() ||
+        (data.pointsAppui || []).length || (data.difficultes || []).length ||
+        (data.remarqueGlobale || '').trim() || (data.adaptations || '').trim();
+      const hasEpreuveObservations = Object.values(data.epreuves || {}).some(item =>
+        (item.modeFrappe || []).length || (item.choix || []).length || (item.observation || '').trim()
+      );
+
+      let comprehensionHtml = '';
+      if(hasComprehension) {
+        comprehensionHtml = `
+          <h3>Compréhension globale des consignes</h3>
+          ${observerList(data.comprehension)}
+          ${(data.comprehensionObservation || '').trim() ? `<p><b>Observation :</b><br>${formatObserverText(data.comprehensionObservation)}</p>` : ''}`;
+      }
+
+      let syntheseHtml = '';
+      if(hasSynthese) {
+        syntheseHtml = `
+          <h3>Synthèse générale</h3>
+          <table class="report-table">
+            <tbody>
+              <tr><th>Utilisation globale du clavier</th><td>${observerList(data.globalKeyboard)}${(data.globalKeyboardObservation || '').trim() ? `<p><b>Observation :</b><br>${formatObserverText(data.globalKeyboardObservation)}</p>` : ''}</td></tr>
+              <tr><th>Points d’appui observés</th><td>${observerList(data.pointsAppui)}</td></tr>
+              <tr><th>Difficultés principales observées</th><td>${observerList(data.difficultes)}</td></tr>
+              <tr><th>Remarque globale</th><td>${(data.remarqueGlobale || '').trim() ? formatObserverText(data.remarqueGlobale) : '<em>Non renseigné</em>'}</td></tr>
+              <tr><th>Adaptations à envisager</th><td>${(data.adaptations || '').trim() ? formatObserverText(data.adaptations) : '<em>Non renseigné</em>'}</td></tr>
+            </tbody>
+          </table>`;
+      }
+
+      const epreuveNote = hasEpreuveObservations
+        ? '<p><em>Les observations par épreuve sont intégrées directement dans le tableau “Résultats détaillés”.</em></p>'
+        : '';
+
+      return `
+        <div class="report-section">
+          <h2>👀 Questionnaire observateur</h2>
+          <p><b>Dernière mise à jour :</b> ${data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'Non renseignée'}</p>
+          ${epreuveNote}
+          ${comprehensionHtml || '<p><em>Compréhension globale des consignes non renseignée.</em></p>'}
+          ${syntheseHtml || ''}
+        </div>`;
+    }
+
+
+    function updatePrintableReportComment() {
+      const commentaire = document.getElementById('rapportCommentaire')?.value || '';
+      const target = document.getElementById('commentaireRapportPrint');
+      if(target) target.textContent = commentaire || 'Aucun commentaire complémentaire.';
+      return commentaire;
+    }
+
+    function getReportFileBaseName() {
+      return `EViC_Adapt_rapport_${safeFileName(App.currentUser?.nom || 'eleve')}_${new Date().toISOString().slice(0,10)}`;
+    }
+
+    function printRapport() {
+      updatePrintableReportComment();
+      document.title = getReportFileBaseName();
+      window.print();
+    }
+
+    function buildStandaloneReportHtml() {
+      updatePrintableReportComment();
+      const report = document.getElementById('printReport');
+      if(!report) throw new Error('Aucun rapport affiché à sauvegarder.');
+
+      const clone = report.cloneNode(true);
+      const originalCanvases = report.querySelectorAll('canvas');
+      const clonedCanvases = clone.querySelectorAll('canvas');
+      clonedCanvases.forEach((canvas, index) => {
+        const original = originalCanvases[index];
+        if(!original) return;
+        try {
+          const img = document.createElement('img');
+          img.src = original.toDataURL('image/png');
+          img.alt = 'Graphique du rapport';
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          canvas.replaceWith(img);
+        } catch(error) {
+          canvas.replaceWith(document.createTextNode('Graphique non exportable.'));
+        }
+      });
+
+      clone.querySelectorAll('.screen-only, .no-print').forEach(element => element.remove());
+      clone.querySelectorAll('.print-only').forEach(element => { element.style.display = 'block'; });
+
+      const styles = Array.from(document.querySelectorAll('style')).map(style => style.textContent).join('\n');
+      const title = getReportFileBaseName();
+      return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+<style>
+${styles}
+body { background:#fff !important; color:#111 !important; }
+.app-shell { max-width:1100px; margin:0 auto; padding:1rem; }
+.print-only { display:block !important; }
+.screen-only, .no-print { display:none !important; }
+.card { box-shadow:none; }
+</style>
+</head>
+<body>
+<div class="app-shell">${clone.outerHTML}</div>
+</body>
+</html>`;
+    }
+
+    async function saveBlobWithPicker(filename, content, mimeType, extension) {
+      const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+      if(window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: `Fichier ${extension.toUpperCase()}`, accept: { [mimeType]: ['.' + extension] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          alert('Bilan sauvegardé sur l’ordinateur.');
+          return;
+        } catch(error) {
+          if(error && error.name === 'AbortError') return;
+          console.warn('Sauvegarde avec choix d’emplacement impossible, téléchargement classique utilisé.', error);
+        }
+      }
+      downloadTextFile(filename, content, mimeType);
+      alert('Le navigateur ne permet pas le choix direct de l’emplacement. Le fichier a été téléchargé dans le dossier de téléchargement par défaut.');
+    }
+
+    async function saveCurrentReportHTML() {
+      try {
+        const filename = getReportFileBaseName() + '.html';
+        const content = buildStandaloneReportHtml();
+        await saveBlobWithPicker(filename, content, 'text/html', 'html');
+      } catch(error) {
+        alert('Sauvegarde impossible : ' + error.message);
+      }
+    }
+
+
+
+    function showRapport() {
+      if(!App.currentUser) return showLogin();
+      const allUserSessions = App.getSessions(App.currentUser.id).slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+      if(!allUserSessions.length) {
+        App.render(`<div class="card"><h2>📊 Rapport</h2><p>Aucune épreuve réalisée.</p><button class="btn" onclick="showDashboard()">Retour</button></div>`);
+        return;
+      }
+
+      const excludedCount = allUserSessions.filter(session => session.excludedFromReport).length;
+      const reportableSessions = allUserSessions.filter(session => !session.excludedFromReport);
+      const availableNames = uniqueEpreuveNamesFromSessions(reportableSessions);
+      const selectedNames = getSelectedReportEpreuves(App.currentUser.id, availableNames);
+      const sessionsSorted = reportableSessions.filter(session => selectedNames.includes(session.epreuve));
+      const filterHtml = buildReportFilterHtml(availableNames, selectedNames, excludedCount);
+
+      if(!sessionsSorted.length) {
+        App.render(`
+          <div class="top-nav no-print"><span class="logo">Rapport détaillé</span><button class="btn secondary" onclick="showDashboard()">Retour</button></div>
+          ${filterHtml}
+          <div class="card"><h2>📊 Rapport</h2><p>Aucune session n’est actuellement incluse dans le rapport. Réintègre une session depuis l’historique ou modifie la sélection des épreuves.</p></div>
+        `);
+        return;
+      }
+
+      const { parEpreuve, categories, notesParEpreuve } = calculerNotes(sessionsSorted);
+      const categoriesRetenues = filterEvaluatedCategories(categories, parEpreuve);
+      const dates = sessionsSorted.map(session => new Date(session.date));
+      const premiereDate = dates[0]?.toLocaleDateString() || '';
+      const derniereDate = dates[dates.length-1]?.toLocaleDateString() || '';
+      const conclusion = buildConclusion(categoriesRetenues, sessionsSorted);
+      const observerData = getObserverData(App.currentUser.id);
+      const observerReportHtml = buildObserverReportHtml(observerData);
+      const autoSummaryHtml = buildAutoSummary(categoriesRetenues, parEpreuve, sessionsSorted, observerData, excludedCount, allUserSessions.length);
+      const notesMoyennes = Object.values(parEpreuve);
+      const noteGlobale = notesMoyennes.length ? (notesMoyennes.reduce((a,b)=>a+b,0) / notesMoyennes.length) : 0;
+      const nbEpreuvesRetenues = uniqueEpreuveNamesFromSessions(sessionsSorted).length;
+
+      let htmlEpreuves = '';
+      for(const [ep, note] of Object.entries(parEpreuve)) {
+        const color = note >= 7 ? 'var(--success)' : note >= 4 ? 'var(--warning)' : 'var(--danger)';
+        htmlEpreuves += `<tr><td>${escapeHtml(ep)}</td><td><span class="score-badge" style="background:${color}">${note.toFixed(1)}/10</span></td><td>${note>=7?'Facilité':note>=4?'Difficulté modérée':'Difficulté importante'}</td></tr>`;
+      }
+
+      let htmlDetails = '';
+      sessionsSorted.forEach(session => {
+        const note = normaliserScore(session.epreuve, session.score);
+        const observationEpreuve = observerDetailsForEpreuve(observerData, session.epreuve);
+        htmlDetails += `<tr>
+          <td>${new Date(session.date).toLocaleString()}</td>
+          <td>${escapeHtml(session.epreuve)}</td>
+          <td>${escapeHtml(session.mode)}</td>
+          <td>${Number.isFinite(note) ? note.toFixed(1) + '/10' : ''}</td>
+          <td>${formatScoreDetailsWithSession(session)}</td>
+          <td>${escapeHtml(session.sentiment || '')}</td>
+          <td>${observationEpreuve}</td>
+        </tr>`;
+      });
+
+      let htmlCategories = '';
+      for(const [cat, note] of Object.entries(categoriesRetenues)) {
+        const color = note >= 7 ? 'var(--success)' : note >= 4 ? 'var(--warning)' : 'var(--danger)';
+        const epreuvesCat = CATEGORIES[cat].filter(epreuve => Object.prototype.hasOwnProperty.call(parEpreuve, epreuve)).join(', ');
+        htmlCategories += `<div class="category-card" style="border-left:4px solid ${color}"><strong>${escapeHtml(cat)}</strong> : ${note.toFixed(1)}/10<div>Épreuves retenues : ${escapeHtml(epreuvesCat)}</div><p>${note>=7?'✅ Facilité':note>=4?'⚠️ Modéré':'❌ Difficulté'}</p></div>`;
+      }
+      if(!htmlCategories) htmlCategories = '<p>Aucune catégorie fonctionnelle calculable avec la sélection actuelle.</p>';
+
+      let recommandations = '';
+      if(categoryScoreNeedsRecommendation(categoriesRetenues, 'Transcription')) recommandations += '<li>Proposer des outils de prédiction de mots ou dictée vocale.</li>';
+      if(categoryScoreNeedsRecommendation(categoriesRetenues, 'Frappe clavier')) recommandations += '<li>Envisager un clavier adapté, des touches agrandies ou un dispositif de pointage alternatif.</li>';
+      if(categoryScoreNeedsRecommendation(categoriesRetenues, 'Visuo-spatiale')) recommandations += '<li>Utiliser des interfaces avec cibles larges, réduire la charge visuelle et privilégier des supports structurés.</li>';
+      if(categoryScoreNeedsRecommendation(categoriesRetenues, 'Calcul')) recommandations += '<li>Proposer une calculatrice, un logiciel de calcul assisté ou des supports de manipulation.</li>';
+      if(categoryScoreNeedsRecommendation(categoriesRetenues, 'Logique')) recommandations += '<li>Fournir des supports visuels séquentiels, des codes couleur et un guidage étape par étape.</li>';
+      if(categoryScoreNeedsRecommendation(categoriesRetenues, 'Mémoire')) recommandations += '<li>Utiliser des aide-mémoires, fractionner les consignes et vérifier la compréhension.</li>';
+      if(!recommandations) recommandations = '<li>Aucune difficulté majeure détectée dans les épreuves retenues. Continuer à observer l’élève en situation écologique.</li>';
+
+      let comparaisonHtml = '';
+      for(const [ep, modes] of Object.entries(notesParEpreuve)) {
+        if(modes.numerique && modes.papier) {
+          const numAvg = modes.numerique.reduce((a,b)=>a+b,0)/modes.numerique.length;
+          const papAvg = modes.papier.reduce((a,b)=>a+b,0)/modes.papier.length;
+          const gain = numAvg - papAvg;
+          comparaisonHtml += `<tr><td>${escapeHtml(ep)}</td><td>${numAvg.toFixed(1)}/10</td><td>${papAvg.toFixed(1)}/10</td><td>${gain>0?'+'+gain.toFixed(1):gain.toFixed(1)}</td></tr>`;
+        }
+      }
+
+      let normHtml = '';
+      if(App.currentUser.niveau) {
+        const niv = App.currentUser.niveau;
+        for(const type of ['copie','repetition']) {
+          if(NORMES_EVIC[type] && NORMES_EVIC[type][niv]) {
+            const norm = NORMES_EVIC[type][niv];
+            const epreuveNom = type === 'copie' ? 'Copie de texte' : 'Répétition de mot';
+            const sessionsEpreuve = sessionsSorted.filter(session => session.epreuve===epreuveNom && session.mode==='numerique');
+            if(sessionsEpreuve.length>0) {
+              const last = sessionsEpreuve[sessionsEpreuve.length-1];
+              const mpm = last.score.mpmEvic;
+              if(mpm !== undefined) {
+                const z = (mpm - norm.moy) / norm.et;
+                const interpretation = z >= -1 ? 'Dans la norme' : z >= -2 ? 'Fragilité' : 'Difficulté importante';
+                normHtml += `<tr><td>${escapeHtml(epreuveNom)}</td><td>${Number(mpm).toFixed(1)} MPM</td><td>${norm.moy} MPM</td><td>${norm.et}</td><td>${z.toFixed(2)}</td><td>${interpretation}</td></tr>`;
+              }
+            }
+          }
+        }
+      }
+
+      App.render(`
+        <div class="top-nav no-print">
+          <span class="logo">Rapport détaillé</span>
+          <button class="btn success" onclick="printRapport()">📄 Exporter PDF</button>
+          <button class="btn success" onclick="saveCurrentReportHTML()">💾 Sauvegarder le bilan</button>
+          <button class="btn secondary" onclick="exportCurrentUserCSV()">⬇️ CSV</button>
+          <button class="btn secondary" onclick="exportCurrentUserJSON()">⬇️ JSON</button>
+          <button class="btn secondary" onclick="showDashboard()">Retour</button>
+        </div>
+        ${filterHtml}
+        <div class="card" id="printReport">
+          <div class="report-print-footer">EViC-Adapt — outil d’observation fonctionnelle, non diagnostique</div>
+          <div class="report-section report-cover">
+            <h1>Rapport détaillé EViC-Adapt</h1>
+            <div class="report-header">
+              <div><b>Nom / code élève :</b> ${escapeHtml(App.currentUser.nom)}</div>
+              <div><b>Date d’édition :</b> ${new Date().toLocaleDateString()}</div>
+              <div><b>Âge :</b> ${escapeHtml(App.currentUser.age)} ans</div>
+              <div><b>Niveau scolaire :</b> ${escapeHtml(App.currentUser.niveau || 'Non renseigné')}</div>
+              <div><b>Profil :</b> ${escapeHtml(App.currentUser.groupe || 'Non renseigné')}</div>
+              <div><b>Usage ordinateur :</b> ${escapeHtml(App.currentUser.ordiUsage || 'Non renseigné')}</div>
+              <div><b>Première passation retenue :</b> ${premiereDate}</div>
+              <div><b>Dernière passation retenue :</b> ${derniereDate}</div>
+            </div>
+            <div class="report-summary-grid">
+              <div class="summary-card"><strong>${nbEpreuvesRetenues}</strong>épreuve(s) incluse(s)</div>
+              <div class="summary-card"><strong>${sessionsSorted.length}</strong>session(s) retenue(s)</div>
+              <div class="summary-card"><strong>${noteGlobale ? noteGlobale.toFixed(1) + '/10' : '—'}</strong>moyenne des épreuves</div>
+              <div class="summary-card"><strong>${excludedCount}</strong>session(s) exclue(s)</div>
+            </div>
+          </div>
+
+          <div class="report-section">
+            <h2>🧭 Résumé automatique</h2>
+            <div class="auto-summary">${autoSummaryHtml}</div>
+          </div>
+
+          <div class="report-section report-disclaimer">
+            <b>Important :</b> ce rapport constitue une aide à l’observation fonctionnelle de l’usage du numérique. Il ne remplace pas un bilan médical, paramédical, psychologique, orthophonique, ergothérapique ou pédagogique complet.
+          </div>
+
+          <div class="report-section">
+            <h2>📊 Synthèse des notes par épreuve</h2>
+            <table class="report-table">
+              <thead><tr><th>Épreuve</th><th>Score moyen</th><th>Interprétation</th></tr></thead>
+              <tbody>${htmlEpreuves}</tbody>
+            </table>
+          </div>
+
+          <div class="report-section allow-break">
+            <h2>📋 Résultats détaillés</h2>
+            <table class="report-table">
+              <thead><tr><th>Date</th><th>Épreuve</th><th>Mode</th><th>Note</th><th>Résultats bruts / contexte</th><th>Ressenti</th><th>Observation observateur</th></tr></thead>
+              <tbody>${htmlDetails}</tbody>
+            </table>
+          </div>
+
+          <div class="report-section">
+            <h2>📂 Catégories fonctionnelles</h2>
+            <div class="grid" style="grid-template-columns:1fr 1fr;">${htmlCategories}</div>
+            <div class="stat-container"><canvas id="radarChart"></canvas></div>
+          </div>
+
+          ${normHtml ? `<div class="report-section"><h2>📏 Positionnement normatif EVIC</h2><table class="report-table"><thead><tr><th>Épreuve</th><th>Résultat</th><th>Moyenne attendue</th><th>Écart-type</th><th>Z-score</th><th>Interprétation</th></tr></thead><tbody>${normHtml}</tbody></table></div>` : ''}
+
+          <div class="report-section">
+            <h2>💡 Préconisations</h2>
+            <ul>${recommandations}</ul>
+          </div>
+
+          <div class="report-section">
+            <h2>📈 Comparaison numérique / papier</h2>
+            ${comparaisonHtml ? `<table class="report-table"><thead><tr><th>Épreuve</th><th>Numérique</th><th>Papier</th><th>Écart</th></tr></thead><tbody>${comparaisonHtml}</tbody></table>` : '<p>Aucune comparaison numérique / papier disponible.</p>'}
+          </div>
+
+          ${observerReportHtml}
+
+          <div class="report-section">
+            <h2>🧾 Conclusion</h2>
+            <div class="conclusion-box">${escapeHtml(conclusion)}</div>
+          </div>
+
+          <div class="report-section">
+            <h2>📝 Commentaire complémentaire de l’observateur</h2>
+            <textarea id="rapportCommentaire" class="screen-only" rows="5" style="width:100%;" placeholder="Ajouter ici les observations cliniques, le contexte de passation, la fatigabilité, les aides utilisées..."></textarea>
+            <p id="commentaireRapportPrint" class="print-only">Aucun commentaire complémentaire.</p>
+          </div>
+        </div>
+      `);
+
+      setTimeout(()=>{
+        const ctx = document.getElementById('radarChart')?.getContext('2d');
+        if(ctx) new Chart(ctx, { type:'radar', data:{ labels:Object.keys(categoriesRetenues), datasets:[{ label:'Score /10', data:Object.values(categoriesRetenues), backgroundColor:'rgba(59,130,246,0.2)', borderColor:'#3b82f6' }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ r:{ beginAtZero:true, max:10, ticks:{stepSize:2} } } } });
+      },100);
+    }
+
+
+    // ========== OUTILS D'ANALYSE ==========
+    function normaliserMotCopie(mot) {
+      return String(mot || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[.,;:!?«»“”()\[\]{}]/g, '')
+        .replace(/[’']/g, "'")
+        .trim();
+    }
+
+    function analyserCopieTexte(texteModele, texteSaisi) {
+      const motsModele = String(texteModele || '').split(/\s+/).filter(Boolean).map(normaliserMotCopie);
+      const motsSaisis = String(texteSaisi || '').split(/\s+/).filter(Boolean).map(normaliserMotCopie);
+      let erreursTexte = 0;
+      for(let i = 0; i < motsSaisis.length; i++) {
+        const attendu = motsModele[i] || '';
+        const donne = motsSaisis[i] || '';
+        if(donne !== attendu) erreursTexte++;
+      }
+      const precisionPct = motsSaisis.length ? Math.max(0, ((motsSaisis.length - erreursTexte) / motsSaisis.length) * 100) : 0;
+      return { motsSaisis: motsSaisis.length, erreursTexte, precisionPct };
+    }
+
+    // ========== EPREUVES ==========
+    class Epreuve {
+      constructor(nom, mode='numerique', isTraining=false) {
+        this.nom = nom; this.mode = mode; this.isTraining = isTraining;
+        this.session = { userId:App.currentUser.id, date:new Date().toISOString(), epreuve:nom, mode, score:{}, sentiment:null };
+        this.startTime = Date.now();
+      }
+      finish() { if(!this.isTraining) App.saveSession(this.session); }
+    }
+
+    function chooseMode(epreuveName, startFn) {
+      App.render(`
+        <div class="top-nav"><span class="logo">${epreuveName}</span><button class="btn secondary" onclick="showEpreuves()">Retour</button></div>
+        <div class="card">
+          <h2>${epreuveName}</h2>
+          <p>Choisissez un mode :</p>
+          <button class="btn" id="startEval">📝 Évaluation</button>
+          <button class="btn warning" id="startTrain">🏋️ Entraînement</button>
+          <button class="btn secondary" id="startPapier">📄 Saisie papier</button>
+        </div>
+      `);
+      document.getElementById('startEval').addEventListener('click', ()=>startFn('evaluation'));
+      document.getElementById('startTrain').addEventListener('click', ()=>startFn('entrainement'));
+      document.getElementById('startPapier').addEventListener('click', ()=>showPaperInput(epreuveName));
+    }
+
+    function showPaperInput(epreuveName) {
+      let formHtml = '';
+      switch(epreuveName) {
+        case 'Pointage de cibles': formHtml = '<label>Précision (%) <input id="pap1"></label><label>Temps (s) <input id="pap2"></label>'; break;
+        case 'Glisser-déposer': formHtml = '<label>Temps (s) <input id="pap1"></label><label>Erreurs <input id="pap2"></label>'; break;
+        case 'Double-clic / Clic droit': formHtml = '<label>Temps (s) <input id="pap1"></label>'; break;
+        case 'Dictée de nombres': formHtml = '<label>Total <input id="pap1" value="10"></label><label>Correct <input id="pap2"></label>'; break;
+        case 'Calcul mental': formHtml = '<label>Total <input id="pap1" value="8"></label><label>Correct <input id="pap2"></label>'; break;
+        case 'Problèmes': formHtml = '<label>Total <input id="pap1" value="4"></label><label>Correct <input id="pap2"></label>'; break;
+        case 'Copie de texte': formHtml = '<label>Caractères <input id="pap1"></label><label>Temps (s) <input id="pap2"></label><label>Erreurs <input id="pap3"></label>'; break;
+        case 'Répétition de mot': formHtml = '<label>Caractères <input id="pap1"></label><label>Temps (s) <input id="pap2"></label>'; break;
+        case 'Cherche trouve': formHtml = '<label>Cibles <input id="pap1" value="25"></label><label>Trouvées <input id="pap2"></label><label>Fausses <input id="pap3"></label><label>Temps (s) <input id="pap4"></label>'; break;
+        case 'Assemblage de formes': formHtml = '<label>Formes <input id="pap1"></label><label>Temps (s) <input id="pap2"></label>'; break;
+        case 'Tracé de précision': formHtml = '<label>Temps (s) <input id="pap1"></label><label>Sorties <input id="pap2"></label>'; break;
+        case 'Points à relier': formHtml = '<label>Temps (s) <input id="pap1"></label><label>Erreurs <input id="pap2"></label>'; break;
+        case 'Identique': formHtml = '<label>Total <input id="pap1" value="10"></label><label>Correct <input id="pap2"></label>'; break;
+        case 'Suite logique': formHtml = '<label>Temps (s) <input id="pap1"></label><label>Erreurs <input id="pap2"></label>'; break;
+        case 'Mémorisation visuelle': formHtml = '<label>Correct <input id="pap1"></label><label>Fausses sélections <input id="pap2"></label>'; break;
+      }
+      App.render(`
+        <div class="top-nav"><span class="logo">Saisie papier - ${epreuveName}</span><button class="btn secondary" onclick="showEpreuves()">Annuler</button></div>
+        <div class="card"><h2>📄 ${epreuveName} (papier)</h2>${formHtml}<button class="btn success" id="savePaperBtn">Enregistrer</button></div>
+      `);
+      document.getElementById('savePaperBtn').addEventListener('click', ()=>{
+        const session = new Epreuve(epreuveName, 'papier');
+        const v1 = document.getElementById('pap1')?.value, v2 = document.getElementById('pap2')?.value, v3 = document.getElementById('pap3')?.value, v4 = document.getElementById('pap4')?.value;
+        switch(epreuveName) {
+          case 'Pointage de cibles': session.session.score = { precision:parseFloat(v1)||0, totalSec:parseFloat(v2)||0 }; break;
+          case 'Glisser-déposer': session.session.score = { temps:parseFloat(v1)||0, erreurs:parseInt(v2)||0 }; break;
+          case 'Double-clic / Clic droit': session.session.score = { temps:parseFloat(v1)||0 }; break;
+          case 'Dictée de nombres': session.session.score = { total:parseInt(v1)||10, correct:parseInt(v2)||0 }; break;
+          case 'Calcul mental': session.session.score = { total:parseInt(v1)||8, correct:parseInt(v2)||0 }; break;
+          case 'Problèmes': session.session.score = { total:parseInt(v1)||4, correct:parseInt(v2)||0 }; break;
+          case 'Copie de texte': { const caracteres = parseInt(v1)||0; const tempsSecondes = parseFloat(v2)||0; const erreurs = parseInt(v3)||0; session.session.score = { caracteres, tempsSecondes, mpmEvic: tempsSecondes ? (caracteres / tempsSecondes * 60) / 6 : 0, erreurs, precisionPct: caracteres ? Math.max(0, 100 - (erreurs / Math.max(1, caracteres/6))*100) : 0 }; break; }
+          case 'Répétition de mot': session.session.score = { caracteres:parseInt(v1)||0, tempsSecondes:parseFloat(v2)||0, mpmEvic: (parseInt(v1)||0)/(parseFloat(v2)||1)*60/6 }; break;
+          case 'Cherche trouve': session.session.score = { cibles:parseInt(v1)||25, trouvees:parseInt(v2)||0, fausses:parseInt(v3)||0, temps:parseFloat(v4)||0 }; break;
+          case 'Assemblage de formes': session.session.score = { formes:parseInt(v1)||0, temps:parseFloat(v2)||0 }; break;
+          case 'Tracé de précision': session.session.score = { temps:parseFloat(v1)||0, sorties:parseInt(v2)||0 }; break;
+          case 'Points à relier': session.session.score = { temps:parseFloat(v1)||0, erreurs:parseInt(v2)||0 }; break;
+          case 'Identique': session.session.score = { total:parseInt(v1)||10, correct:parseInt(v2)||0 }; break;
+          case 'Suite logique': session.session.score = { temps:parseFloat(v1)||0, erreurs:parseInt(v2)||0 }; break;
+          case 'Mémorisation visuelle': session.session.score = { correct:parseInt(v1)||0, errors:parseInt(v2)||0, total:6 }; break;
+        }
+        session.finish();
+        App.render(`<div class="card"><h2>Enregistré</h2><button class="btn" onclick="showEpreuves()">Menu</button></div>`);
+      });
+    }
+
+    // ========== QUESTIONNAIRE RESSENTI ==========
+    function askSentiment(session) {
+      App.render(`
+        <div class="card center">
+          <h2>😊 Comment t'es-tu senti(e) ?</h2>
+          <div style="display:flex; gap:1rem; justify-content:center; margin:1rem;">
+            <div class="emoji-btn" id="sent1">😊</div>
+            <div class="emoji-btn" id="sent2">😐</div>
+            <div class="emoji-btn" id="sent3">😞</div>
+          </div>
+          <button class="btn secondary" id="skipSent">Passer</button>
+        </div>
+      `);
+      document.getElementById('sent1').addEventListener('click', ()=>saveSentiment(session, '😊'));
+      document.getElementById('sent2').addEventListener('click', ()=>saveSentiment(session, '😐'));
+      document.getElementById('sent3').addEventListener('click', ()=>saveSentiment(session, '😞'));
+      document.getElementById('skipSent').addEventListener('click', ()=>showEpreuves());
+    }
+    function saveSentiment(session, sentiment) {
+      const all = JSON.parse(localStorage.getItem('ergoeval_sessions')||'[]');
+      const idx = all.findIndex(s=>s.id===session.id);
+      if(idx!==-1) { all[idx].sentiment = sentiment; localStorage.setItem('ergoeval_sessions', JSON.stringify(all)); }
+      showEpreuves();
+    }
+
+    // ========== EPREUVES ==========
+    const Epreuves = {
+      Pointage: {
+        chooseMode() { chooseMode('Pointage de cibles', Epreuves.Pointage.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const state = { running:false, targetCount:20, current:0, hits:0, misses:0, startTime:0, times:[], sizes:[30,45,60,75], target:null, interval:null };
+          const epreuve = new Epreuve('Pointage de cibles', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Pointage ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card"><h2>🎯 Pointage de cibles</h2><p>Cliquez sur les cibles rouges aussi vite que possible.</p>
+              <div class="timer" id="timer">00:00</div><div class="game-area" id="gameArea"></div>
+              <button class="btn" id="startBtn" onclick="Epreuves.Pointage.demarrer()">Démarrer</button>
+            </div>
+          `);
+          const area = document.getElementById('gameArea');
+          area.addEventListener('click', (e)=>Epreuves.Pointage.handleClick(e, state));
+          area.addEventListener('touchstart', (e)=>{ e.preventDefault(); Epreuves.Pointage.handleClick(e.touches[0], state); }, {passive:false});
+          window._ptEpreuve = epreuve; window._ptState = state;
+        },
+        demarrer() {
+          const state = window._ptState;
+          state.running = true; state.startTime = Date.now();
+          document.getElementById('startBtn').disabled = true;
+          this.nextTarget();
+          state.interval = setInterval(()=>{
+            if(!state.running) return;
+            const elapsed = Math.floor((Date.now()-state.startTime)/1000);
+            document.getElementById('timer').textContent = `${Math.floor(elapsed/60).toString().padStart(2,'0')}:${(elapsed%60).toString().padStart(2,'0')}`;
+          }, 200);
+        },
+        nextTarget() {
+          const state = window._ptState;
+          if(state.current >= state.targetCount) { Epreuves.Pointage.terminer(); return; }
+          if(state.target) state.target.remove();
+          const area = document.getElementById('gameArea');
+          const size = state.sizes[Math.floor(Math.random()*state.sizes.length)];
+          const rect = area.getBoundingClientRect();
+          const x = Math.random()*(rect.width-size-4), y = Math.random()*(rect.height-size-4);
+          const t = document.createElement('div'); t.className='target';
+          t.style.width=size+'px'; t.style.height=size+'px'; t.style.left=x+'px'; t.style.top=y+'px';
+          t.dataset.timeStart = Date.now();
+          area.appendChild(t); state.target = t;
+        },
+        handleClick(e, state) {
+          if(!state.running || !state.target) return;
+          const t = state.target; const rect = t.getBoundingClientRect();
+          const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
+          const dist = Math.hypot(e.clientX-cx, e.clientY-cy);
+          const hit = dist <= rect.width/2; const now = Date.now();
+          state.times.push(now - parseInt(t.dataset.timeStart));
+          if(!hit) { state.misses++; App.beep(200,300); t.style.background='radial-gradient(circle, #f59e0b, #d97706)'; t.dataset.timeStart=now; }
+          else { state.hits++; t.classList.add('clicked'); App.beep(500,150); state.current++; setTimeout(()=>Epreuves.Pointage.nextTarget(), 300); }
+        },
+        terminer() {
+          const state = window._ptState; state.running=false; clearInterval(state.interval);
+          if(state.target) state.target.remove();
+          const total = (Date.now()-state.startTime)/1000;
+          const prec = state.hits/(state.hits+state.misses)*100 || 0;
+          const epreuve = window._ptEpreuve;
+          epreuve.session.score = { hits:state.hits, misses:state.misses, precision:Math.round(prec), totalSec:total.toFixed(1) };
+          App.render(`<div class="card"><h2>Résultat</h2><p>Cibles: ${state.hits}/${state.targetCount}, Précision: ${prec.toFixed(1)}%, Temps: ${total.toFixed(1)}s</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      GlisserDeposer: {
+        chooseMode() { chooseMode('Glisser-déposer', Epreuves.GlisserDeposer.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const items = ['🟥','🟢','🔺']; const targets = ['Carré','Rond','Triangle'];
+          const state = { current:0, errors:0, startTime:Date.now(), interval:null };
+          const epreuve = new Epreuve('Glisser-déposer', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Glisser-déposer ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card"><h2>🖐️ Glisser-déposer</h2><p>Déposez chaque forme dans la bonne boîte.</p>
+              <div class="timer" id="timer">00:00</div>
+              <div style="display:flex; justify-content:space-around; margin:1rem 0;">
+                <div id="sources" style="display:flex; gap:1rem;"></div>
+                <div id="targets" style="display:flex; gap:1rem;"></div>
+              </div>
+            </div>
+          `);
+          const srcDiv = document.getElementById('sources'), tgtDiv = document.getElementById('targets');
+          items.forEach((shape, i) => {
+            const src = document.createElement('div'); src.textContent=shape; src.style.fontSize='3rem'; src.draggable=true;
+            src.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', i.toString()));
+            srcDiv.appendChild(src);
+            const tgt = document.createElement('div'); tgt.className='dropzone'; tgt.textContent=targets[i];
+            tgt.addEventListener('dragover', e=>e.preventDefault());
+            tgt.addEventListener('drop', e=>{
+              e.preventDefault();
+              const idx = parseInt(e.dataTransfer.getData('text/plain'));
+              if(idx === i) { state.current++; App.beep(600,150); if(state.current===items.length) Epreuves.GlisserDeposer.terminer(); else { src.remove(); tgt.style.background='#d1fae5'; } }
+              else { state.errors++; App.beep(200,300); }
+            });
+            tgtDiv.appendChild(tgt);
+          });
+          state.interval = setInterval(()=>{
+            const elapsed = Math.floor((Date.now()-state.startTime)/1000);
+            document.getElementById('timer').textContent = `${Math.floor(elapsed/60).toString().padStart(2,'0')}:${(elapsed%60).toString().padStart(2,'0')}`;
+          },200);
+          window._gdEpreuve = epreuve; window._gdState = state;
+        },
+        terminer() {
+          clearInterval(window._gdState.interval);
+          const total = (Date.now()-window._gdState.startTime)/1000;
+          const epreuve = window._gdEpreuve;
+          epreuve.session.score = { items:3, temps:total.toFixed(1), erreurs:window._gdState.errors };
+          App.render(`<div class="card"><h2>Terminé</h2><p>Temps: ${total.toFixed(1)}s, Erreurs: ${window._gdState.errors}</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      DoubleClic: {
+        chooseMode() { chooseMode('Double-clic / Clic droit', Epreuves.DoubleClic.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const essais = [
+            {type:'double', consigne:'Double-cliquez sur le dossier', icon:'📁'},
+            {type:'right', consigne:'Faites un clic droit sur l\'étoile', icon:'⭐'},
+            {type:'double', consigne:'Double-cliquez sur le livre', icon:'📚'},
+            {type:'right', consigne:'Faites un clic droit sur le soleil', icon:'☀️'}
+          ];
+          const state = { essais, current:0, times:[], startTime:Date.now() };
+          const epreuve = new Epreuve('Double-clic / Clic droit', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Double-clic ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card center"><h2>🖱️ Double-clic / Clic droit</h2><p id="consigne"></p><div id="icon" style="font-size:5rem; cursor:pointer;"></div></div>
+          `);
+          window._dcState = state; window._dcEpreuve = epreuve;
+          Epreuves.DoubleClic.afficher();
+        },
+        afficher() {
+          const s = window._dcState;
+          if(s.current >= s.essais.length) { Epreuves.DoubleClic.terminer(); return; }
+          const essai = s.essais[s.current];
+          document.getElementById('consigne').textContent = essai.consigne;
+          const icon = document.getElementById('icon'); icon.textContent = essai.icon;
+          icon.onclick = null; icon.ondblclick = null; icon.oncontextmenu = null;
+          if(essai.type === 'double') {
+            icon.ondblclick = (e) => { e.preventDefault(); s.times.push(Date.now()-s.startTime); s.current++; App.beep(600,150); Epreuves.DoubleClic.afficher(); };
+          } else {
+            icon.oncontextmenu = (e) => { e.preventDefault(); s.times.push(Date.now()-s.startTime); s.current++; App.beep(600,150); Epreuves.DoubleClic.afficher(); };
+          }
+        },
+        terminer() {
+          const total = (Date.now()-window._dcState.startTime)/1000;
+          const epreuve = window._dcEpreuve;
+          epreuve.session.score = { temps:total.toFixed(1) };
+          App.render(`<div class="card"><h2>Terminé</h2><p>Temps: ${total.toFixed(1)}s</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      Dictee: {
+        chooseMode() { chooseMode('Dictée de nombres', Epreuves.Dictee.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const nombres = ['482','73','1056','29','630','8147','59','302','978','1500'];
+          const state = { nombres, current:0, responses:[] };
+          const epreuve = new Epreuve('Dictée de nombres', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Dictée ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card"><h2>🔢 Dictée de nombres</h2><p>Écoutez et tapez le nombre entendu.</p>
+              <div id="dnPlay" style="font-size:2rem; cursor:pointer;" onclick="Epreuves.Dictee.lire()">🔊</div>
+              <input id="dnInput" style="width:200px;" spellcheck="false"><button class="btn" onclick="Epreuves.Dictee.valider()">Valider</button>
+              <p id="dnProgress">1/${nombres.length}</p>
+            </div>
+          `);
+          window._dnState = state; window._dnEpreuve = epreuve;
+          Epreuves.Dictee.lire();
+        },
+        lire() {
+          const nb = window._dnState.nombres[window._dnState.current];
+          if('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(nb); u.lang='fr-FR'; u.rate=0.9; speechSynthesis.speak(u);
+          } else { document.getElementById('dnPlay').textContent = nb; }
+        },
+        valider() {
+          const s = window._dnState;
+          const val = document.getElementById('dnInput').value.trim();
+          const expected = s.nombres[s.current];
+          s.responses.push({ expected, given:val, correct:val===expected });
+          s.current++;
+          if(s.current >= s.nombres.length) { Epreuves.Dictee.terminer(); }
+          else { document.getElementById('dnInput').value=''; document.getElementById('dnProgress').textContent=`${s.current+1}/${s.nombres.length}`; Epreuves.Dictee.lire(); }
+        },
+        terminer() {
+          const s = window._dnState;
+          const correct = s.responses.filter(r=>r.correct).length;
+          const epreuve = window._dnEpreuve;
+          epreuve.session.score = { total:s.nombres.length, correct, erreurs:s.nombres.length-correct };
+          App.render(`<div class="card"><h2>Résultat</h2><p>Correct: ${correct}/${s.nombres.length}</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      CalculMental: {
+        chooseMode() { chooseMode('Calcul mental', Epreuves.CalculMental.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const ops = [{q:'12+9',a:21},{q:'34-16',a:18},{q:'5×7',a:35},{q:'27+15',a:42},{q:'63-28',a:35},{q:'8×6',a:48},{q:'100-45',a:55},{q:'9×4',a:36}];
+          const state = { ops, current:0, responses:[] };
+          const epreuve = new Epreuve('Calcul mental', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Calcul ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card center"><h2>🧮 Calcul mental</h2><p>Résolvez l'opération et validez.</p>
+              <div id="cmOp" style="font-size:2rem;"></div><input type="number" id="cmInput" style="width:120px;" spellcheck="false"><button class="btn" onclick="Epreuves.CalculMental.valider()">Valider</button>
+              <p id="cmProgress">1/${ops.length}</p>
+            </div>
+          `);
+          window._cmState = state; window._cmEpreuve = epreuve;
+          Epreuves.CalculMental.afficher();
+        },
+        afficher() { const s=window._cmState; if(s.current>=s.ops.length){Epreuves.CalculMental.terminer();return;} document.getElementById('cmOp').textContent=s.ops[s.current].q; document.getElementById('cmInput').value=''; document.getElementById('cmInput').focus(); },
+        valider() { const s=window._cmState; const val=parseInt(document.getElementById('cmInput').value); const expected=s.ops[s.current].a; s.responses.push({expected,given:val,correct:val===expected}); s.current++; if(s.current>=s.ops.length)Epreuves.CalculMental.terminer(); else{document.getElementById('cmProgress').textContent=`${s.current+1}/${s.ops.length}`;Epreuves.CalculMental.afficher();} },
+        terminer() { const correct=window._cmState.responses.filter(r=>r.correct).length; const epreuve=window._cmEpreuve; epreuve.session.score={total:window._cmState.ops.length,correct,erreurs:window._cmState.ops.length-correct}; App.render(`<div class="card"><h2>Résultat</h2><p>Correct: ${correct}/${window._cmState.ops.length}</p></div>`); if(!epreuve.isTraining){epreuve.finish();askSentiment(epreuve.session);}else{setTimeout(()=>{alert('Entraînement terminé !');showEpreuves();},100);} }
+      },
+      Problemes: {
+        chooseMode() { chooseMode('Problèmes', Epreuves.Problemes.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const pb = [
+            { enonce: 'Paul a 15 billes. Il donne 6 billes à un ami. Combien de billes lui reste-t-il ?', rep: 9 },
+            { enonce: 'Marie a 3 paquets. Dans chaque paquet, il y a 4 bonbons. Combien de bonbons Marie a-t-elle en tout ?', rep: 12 },
+            { enonce: 'Un livre coûte 8 euros. Combien coûtent 5 livres ?', rep: 40 },
+            { enonce: 'Dans un bus, il y a 24 passagers. À l’arrêt suivant, 7 passagers descendent. Combien de passagers restent dans le bus ?', rep: 17 }
+          ];
+          const state = { pb, current:0, responses:[] };
+          const epreuve = new Epreuve('Problèmes', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Problèmes ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card"><h2>📝 Résolution de problèmes</h2><p>Lis le problème, calcule la réponse, puis écris uniquement le nombre dans la case.</p><p id="pbEnonce" style="font-size:1.2rem; font-weight:600; margin:1rem 0;"></p><input type="number" id="pbInput" style="width:100px;" spellcheck="false"><button class="btn" onclick="Epreuves.Problemes.valider()">Valider</button><p id="pbProgress">1/${pb.length}</p></div>
+          `);
+          window._pbState = state; window._pbEpreuve = epreuve;
+          Epreuves.Problemes.afficher();
+        },
+        afficher() { const s=window._pbState; if(s.current>=s.pb.length){Epreuves.Problemes.terminer();return;} document.getElementById('pbEnonce').textContent=s.pb[s.current].enonce; document.getElementById('pbInput').value=''; },
+        valider() { const s=window._pbState; const val=parseInt(document.getElementById('pbInput').value); s.responses.push({expected:s.pb[s.current].rep,given:val,correct:val===s.pb[s.current].rep}); s.current++; if(s.current>=s.pb.length)Epreuves.Problemes.terminer(); else{document.getElementById('pbProgress').textContent=`${s.current+1}/${s.pb.length}`;Epreuves.Problemes.afficher();} },
+        terminer() { const correct=window._pbState.responses.filter(r=>r.correct).length; const epreuve=window._pbEpreuve; epreuve.session.score={total:window._pbState.pb.length,correct,erreurs:window._pbState.pb.length-correct}; App.render(`<div class="card"><h2>Résultat</h2><p>Correct: ${correct}/${window._pbState.pb.length}</p></div>`); if(!epreuve.isTraining){epreuve.finish();askSentiment(epreuve.session);}else{setTimeout(()=>{alert('Entraînement terminé !');showEpreuves();},100);} }
+      },
+      CopieTexte: {
+        chooseMode() { chooseMode('Copie de texte', Epreuves.CopieTexte.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          App.render(`
+            <div class="top-nav"><span class="logo">Copie ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card">
+              <h2>✍️ Copie de texte</h2>
+              <p>Choisissez le niveau scolaire :</p>
+              <select id="niveauSelect">
+                <option value="CE1">CE1</option><option value="CE2">CE2</option><option value="CM1">CM1</option><option value="CM2">CM2</option>
+                <option value="6ème">6ème</option><option value="4ème">4ème</option><option value="2nde">2nde</option>
+              </select>
+              <button class="btn" onclick="Epreuves.CopieTexte.lancer()">Démarrer</button>
+              <button class="btn secondary" onclick="showEpreuves()">Annuler</button>
+            </div>
+          `);
+          window._ctIsTraining = isTraining;
+        },
+        lancer() {
+          const niveau = document.getElementById('niveauSelect').value;
+          const texte = TEXTES_NIVEAUX[niveau] || TEXTES_NIVEAUX["CE2"];
+          const state = { texte, corrections:0, startTime:null, interval:null, finished:false, niveau };
+          const isTraining = window._ctIsTraining;
+          const epreuve = new Epreuve('Copie de texte', 'numerique', isTraining);
+          App.render(`
+            <div class="card"><h2>✍️ Copie de texte (${niveau})</h2>
+              <p>Recopiez le texte ci-dessous du mieux que vous pouvez, de façon continue pendant 5 minutes. <b>Correcteur orthographique désactivé.</b> Appuyez sur <b>Arrêter</b> quand vous avez terminé.</p>
+              <blockquote style="background:var(--bg); padding:1rem; border-radius:8px;">${texte}</blockquote>
+              <textarea id="ctInput" rows="6" style="width:100%" spellcheck="false" disabled placeholder="Cliquez sur Démarrer..."></textarea>
+              <div class="timer" id="timer">05:00</div>
+              <button class="btn" id="startBtn" onclick="Epreuves.CopieTexte.demarrer()">Démarrer</button>
+              <button class="btn success" id="stopBtn" onclick="Epreuves.CopieTexte.terminer()" disabled>Arrêter</button>
+            </div>
+          `);
+          window._ctState = state; window._ctEpreuve = epreuve;
+        },
+        demarrer() {
+          const state = window._ctState;
+          state.startTime = Date.now();
+          document.getElementById('ctInput').disabled = false; document.getElementById('ctInput').focus();
+          document.getElementById('startBtn').disabled = true; document.getElementById('stopBtn').disabled = false;
+          document.getElementById('ctInput').addEventListener('keydown', (e) => { if(e.key==='Backspace') state.corrections++; });
+          let remaining = 300;
+          state.interval = setInterval(() => {
+            remaining--;
+            const min = Math.floor(remaining/60).toString().padStart(2,'0');
+            const sec = (remaining%60).toString().padStart(2,'0');
+            document.getElementById('timer').textContent = `${min}:${sec}`;
+            if(remaining <= 0) Epreuves.CopieTexte.terminer();
+          }, 1000);
+          setTimeout(() => { if(window._ctState && !window._ctState.finished) Epreuves.CopieTexte.terminer(); }, 300000);
+        },
+        terminer() {
+          const state = window._ctState;
+          if(state.finished) return;
+          state.finished = true;
+          clearInterval(state.interval);
+          document.getElementById('ctInput').disabled = true;
+          document.getElementById('stopBtn').disabled = true;
+          const texteSaisi = document.getElementById('ctInput').value;
+          const caracteres = texteSaisi.length;
+          const tempsSecondes = (Date.now() - state.startTime) / 1000;
+          const mpmEvic = (caracteres / tempsSecondes * 60) / 6;
+          const analyseCopie = analyserCopieTexte(state.texte, texteSaisi);
+          const epreuve = window._ctEpreuve;
+          epreuve.session.score = {
+            caracteres,
+            tempsSecondes,
+            mpmEvic,
+            erreurs: analyseCopie.erreursTexte,
+            erreursTexte: analyseCopie.erreursTexte,
+            corrections: state.corrections,
+            motsSaisis: analyseCopie.motsSaisis,
+            precisionPct: analyseCopie.precisionPct,
+            niveau: state.niveau
+          };
+          App.render(`<div class="card"><h2>Résultat Copie</h2>
+            <p>Caractères : ${caracteres} en ${tempsSecondes.toFixed(1)}s</p>
+            <p>Vitesse (EVIC) : ${mpmEvic.toFixed(1)} mots/min</p>
+            <p>Erreurs de copie estimées : ${analyseCopie.erreursTexte}</p>
+            <p>Corrections / effacements : ${state.corrections}</p>
+            <p>Précision estimée : ${analyseCopie.precisionPct.toFixed(1)}%</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(() => { alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      RepetitionMot: {
+        chooseMode() { chooseMode('Répétition de mot', Epreuves.RepetitionMot.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const state = { mot: "lames", caracteres: 0, startTime: null, interval: null, finished: false };
+          const epreuve = new Epreuve('Répétition de mot', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Répétition ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card"><h2>🔁 Répétition de mot ("lames")</h2>
+              <p>Tape le mot <b>"lames"</b> en continu, avec un espace après chaque mot, pendant 3 minutes.</p>
+              <div class="timer" id="timer">03:00</div>
+              <textarea id="rmInput" rows="4" style="width:100%" spellcheck="false" disabled placeholder="Cliquez sur Démarrer..."></textarea>
+              <button class="btn" id="startBtn" onclick="Epreuves.RepetitionMot.demarrer()">Démarrer</button>
+              <button class="btn success" id="stopBtn" onclick="Epreuves.RepetitionMot.terminer()" disabled>Arrêter</button>
+            </div>
+          `);
+          window._rmState = state; window._rmEpreuve = epreuve;
+        },
+        demarrer() {
+          const state = window._rmState;
+          state.startTime = Date.now();
+          document.getElementById('startBtn').disabled = true; document.getElementById('stopBtn').disabled = false;
+          document.getElementById('rmInput').disabled = false; document.getElementById('rmInput').focus();
+          let remaining = 180;
+          state.interval = setInterval(() => {
+            remaining--;
+            const min = Math.floor(remaining/60).toString().padStart(2,'0');
+            const sec = (remaining%60).toString().padStart(2,'0');
+            document.getElementById('timer').textContent = `${min}:${sec}`;
+            if(remaining <= 0) Epreuves.RepetitionMot.terminer();
+          }, 1000);
+          setTimeout(() => { if(window._rmState && !window._rmState.finished) Epreuves.RepetitionMot.terminer(); }, 180000);
+        },
+        terminer() {
+          const state = window._rmState;
+          if(state.finished) return;
+          state.finished = true;
+          clearInterval(state.interval);
+          document.getElementById('rmInput').disabled = true;
+          document.getElementById('stopBtn').disabled = true;
+          const texteSaisi = document.getElementById('rmInput').value;
+          const caracteres = texteSaisi.length;
+          const tempsSecondes = (Date.now() - state.startTime) / 1000;
+          const mpmEvic = (caracteres / tempsSecondes * 60) / 6;
+          const epreuve = window._rmEpreuve;
+          epreuve.session.score = { caracteres, tempsSecondes, mpmEvic };
+          App.render(`<div class="card"><h2>Résultat Répétition</h2>
+            <p>Caractères (espaces compris) : ${caracteres}</p>
+            <p>Temps : ${tempsSecondes.toFixed(1)} s</p>
+            <p>Vitesse (EVIC) : ${mpmEvic.toFixed(1)} mots/min</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(() => { alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      Barrage: {
+        chooseMode() { chooseMode('Cherche trouve', Epreuves.Barrage.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const icons = ['🔔','🚗','🏠','🌙'];
+          let grid = []; for(let i=0;i<100;i++) grid.push(Math.random()<0.25 ? icons[0] : icons[Math.floor(Math.random()*3)+1]);
+          const state = { grid, cibles:grid.filter(g=>g===icons[0]).length, trouvees:0, fausses:0, startTime:Date.now(), interval:null };
+          const epreuve = new Epreuve('Cherche trouve', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Barrage ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card"><h2>🔍 Cherche trouve</h2><p>Cliquez sur toutes les cloches 🔔, puis "Terminé".</p>
+              <div class="timer" id="timer">00:00</div><div id="bvGrid" style="display:grid; grid-template-columns:repeat(10,1fr); gap:4px;"></div>
+              <button class="btn success" onclick="Epreuves.Barrage.terminer()">✅ Terminé</button>
+            </div>
+          `);
+          const gridEl = document.getElementById('bvGrid');
+          grid.forEach((icon, idx) => {
+            const cell = document.createElement('div'); cell.className='grid-cell'; cell.textContent=icon;
+            cell.addEventListener('click', ()=>{ if(cell.classList.contains('selected')){cell.classList.remove('selected'); if(icon===icons[0])state.trouvees--; else state.fausses--;} else{cell.classList.add('selected'); if(icon===icons[0])state.trouvees++; else state.fausses++;} });
+            gridEl.appendChild(cell);
+          });
+          state.interval = setInterval(()=>{ const elapsed = Math.floor((Date.now()-state.startTime)/1000); document.getElementById('timer').textContent = `${Math.floor(elapsed/60).toString().padStart(2,'0')}:${(elapsed%60).toString().padStart(2,'0')}`; },200);
+          window._bvState = state; window._bvEpreuve = epreuve;
+        },
+        terminer() {
+          clearInterval(window._bvState.interval);
+          const s = window._bvState; const temps = (Date.now()-s.startTime)/1000;
+          const epreuve = window._bvEpreuve;
+          epreuve.session.score = { cibles:s.cibles, trouvees:s.trouvees, fausses:s.fausses, temps:temps.toFixed(1) };
+          App.render(`<div class="card"><h2>Résultat</h2><p>Trouvées: ${s.trouvees}/${s.cibles}, Fausses: ${s.fausses}</p></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      Assemblage: {
+        chooseMode() { chooseMode('Assemblage de formes', Epreuves.Assemblage.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const state = { formes: [], startTime: Date.now() };
+          const epreuve = new Epreuve('Assemblage de formes', 'numerique', isTraining);
+          App.render(`
+            <div class="card"><h2>🧩 Assemblage de formes ${isTraining?'(Entraînement)':''}</h2><p>Glissez les formes pour reproduire la maison.</p>
+              <div style="display:flex; gap:1rem;"><div><strong>Modèle</strong><svg width="120" height="120"><rect x="20" y="35" width="80" height="55" fill="none" stroke="black" stroke-width="2"/><polygon points="60,5 100,35 20,35" fill="none" stroke="black" stroke-width="2"/><circle cx="60" cy="60" r="15" fill="none" stroke="black" stroke-width="2"/></svg></div>
+              <div style="flex:1"><div id="palette" style="display:flex; gap:0.5rem;">
+                <div class="palette-item" style="background:#e53935; width:60px; height:45px;" draggable="true" data-shape="rect" data-w="80" data-h="55"></div>
+                <div class="palette-item" style="width:0;height:0;border-left:25px solid transparent;border-right:25px solid transparent;border-bottom:40px solid #43a047;" draggable="true" data-shape="triangle" data-w="50" data-h="40"></div>
+                <div class="palette-item" style="background:#1e88e5; border-radius:50%; width:35px; height:35px;" draggable="true" data-shape="circle" data-w="35" data-h="35"></div>
+              </div><div id="dropzone" class="construction-zone"></div></div></div>
+              <button class="btn success" onclick="Epreuves.Assemblage.terminer()">Valider</button>
+              <button class="btn secondary" onclick="showEpreuves()">Menu</button>
+            </div>
+          `);
+          document.getElementById('dropzone').addEventListener('dragover', e=>e.preventDefault());
+          document.getElementById('dropzone').addEventListener('drop', e=>{
+            e.preventDefault();
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const rect = document.getElementById('dropzone').getBoundingClientRect();
+            const el = document.createElement('div'); el.className='shape-on-zone'; el.style.left=(e.clientX-rect.left-data.w/2)+'px'; el.style.top=(e.clientY-rect.top-data.h/2)+'px';
+            if(data.shape==='rect'){el.style.width=data.w+'px';el.style.height=data.h+'px';el.style.background='#e53935';}
+            else if(data.shape==='triangle'){el.style.borderLeft='25px solid transparent';el.style.borderRight='25px solid transparent';el.style.borderBottom='40px solid #43a047';}
+            else{el.style.width=data.w+'px';el.style.height=data.h+'px';el.style.background='#1e88e5';el.style.borderRadius='50%';}
+            el.addEventListener('mousedown', startDragShape); el.addEventListener('touchstart', startDragShape, {passive:false});
+            document.getElementById('dropzone').appendChild(el);
+            state.formes.push({shape:data.shape, x:0, y:0});
+          });
+          document.querySelectorAll('.palette-item').forEach(item=>{ item.addEventListener('dragstart', e=>e.dataTransfer.setData('text/plain', JSON.stringify({shape:item.dataset.shape, w:parseInt(item.dataset.w), h:parseInt(item.dataset.h)}))); });
+          window._afState = state; window._afEpreuve = epreuve;
+        },
+        terminer() {
+          const temps = (Date.now()-window._afState.startTime)/1000;
+          const epreuve = window._afEpreuve;
+          epreuve.session.score = { formes:window._afState.formes.length, temps:temps.toFixed(1) };
+          App.render(`<div class="card"><h2>Assemblage terminé</h2></div>`);
+          if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+          else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      TracePrecision: {
+        chooseMode() { chooseMode('Tracé de précision', Epreuves.TracePrecision.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const w=800, h=350;
+          const pointsBruts = []; for(let i=0;i<=20;i++) pointsBruts.push({x:40+i*35, y:h/2 + Math.sin(i*0.8)*100});
+          const path = []; for(let i=0;i<200;i++){ const t=i/199; const idx=t*(pointsBruts.length-1); const idx0=Math.floor(idx); const idx1=Math.min(idx0+1,pointsBruts.length-1); const frac=idx-idx0; path.push({x:pointsBruts[idx0].x+(pointsBruts[idx1].x-pointsBruts[idx0].x)*frac, y:pointsBruts[idx0].y+(pointsBruts[idx1].y-pointsBruts[idx0].y)*frac}); }
+          const state = { path, tracing:false, sorties:0, startTime:null, points:[], lastOut:false };
+          const epreuve = new Epreuve('Tracé de précision', 'numerique', isTraining);
+          App.render(`
+            <div class="card"><h2>✏️ Tracé de précision ${isTraining?'(Entraînement)':''}</h2>
+              <p>Suivez le chemin avec la souris (ou doigt). <span style="color:red">Si vous sortez du gris, le trait devient rouge.</span></p>
+              <canvas id="traceCanvas" width="800" height="350" style="border:1px solid var(--border); width:100%;"></canvas>
+              <button class="btn secondary" onclick="showEpreuves()">Menu</button>
+            </div>
+          `);
+          const canvas = document.getElementById('traceCanvas');
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0,0,w,h); ctx.beginPath(); ctx.strokeStyle='#ccc'; ctx.lineWidth=25; ctx.lineCap='round'; ctx.moveTo(path[0].x,path[0].y); for(let i=1;i<path.length;i++) ctx.lineTo(path[i].x,path[i].y); ctx.stroke();
+          ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(path[0].x,path[0].y,8,0,2*Math.PI); ctx.fill(); ctx.fillStyle='blue'; ctx.beginPath(); ctx.arc(path[path.length-1].x,path[path.length-1].y,8,0,2*Math.PI); ctx.fill();
+          const TOLERANCE = 12.5;
+          canvas.addEventListener('mousedown', (e)=>{ const rect=canvas.getBoundingClientRect(); const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height; const x=(e.clientX-rect.left)*scaleX, y=(e.clientY-rect.top)*scaleY; if(Math.hypot(x-path[0].x,y-path[0].y)<20){ state.tracing=true; state.startTime=Date.now(); } });
+          const move = (x,y) => { if(!state.tracing) return; state.points.push({x,y}); let minDist=Infinity; for(const p of path) minDist=Math.min(minDist,Math.hypot(x-p.x,y-p.y)); const isOut=minDist>TOLERANCE; if(isOut && !state.lastOut) state.sorties++; state.lastOut=isOut; ctx.fillStyle=isOut?'#ef4444':'#10b981'; ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fill(); const end=path[path.length-1]; if(Math.hypot(x-end.x,y-end.y)<12){ state.tracing=false; canvas.removeEventListener('mousemove',mouseMove); canvas.removeEventListener('touchmove',touchMove); Epreuves.TracePrecision.terminer(); } };
+          const mouseMove = (e) => { const rect=canvas.getBoundingClientRect(); const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height; move((e.clientX-rect.left)*scaleX,(e.clientY-rect.top)*scaleY); };
+          const touchMove = (e) => { e.preventDefault(); const rect=canvas.getBoundingClientRect(); const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height; const t=e.touches[0]; move((t.clientX-rect.left)*scaleX,(t.clientY-rect.top)*scaleY); };
+          canvas.addEventListener('mousemove',mouseMove); canvas.addEventListener('touchmove',touchMove,{passive:false});
+          window._tpEpreuve=epreuve; window._tpState=state;
+        },
+        terminer() {
+          const state=window._tpState; const temps=(Date.now()-state.startTime)/1000;
+          const epreuve=window._tpEpreuve;
+          epreuve.session.score={temps:temps.toFixed(1), sorties:state.sorties};
+          App.render(`<div class="card"><h2>Résultat Tracé</h2><p>Temps: ${temps.toFixed(1)}s, Sorties: ${state.sorties}</p></div>`);
+          if(!epreuve.isTraining){ epreuve.finish(); askSentiment(epreuve.session); }
+          else{ setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+        }
+      },
+      PointsARelier: {
+        chooseMode() { chooseMode('Points à relier', Epreuves.PointsARelier.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const points = [{x:400,y:30,num:1},{x:480,y:150,num:2},{x:700,y:120,num:3},{x:520,y:240,num:4},{x:580,y:380,num:5},{x:400,y:300,num:6},{x:220,y:380,num:7},{x:280,y:240,num:8},{x:100,y:120,num:9},{x:320,y:150,num:10}];
+          const state = { points, current:1, startTime:Date.now(), erreurs:0 };
+          const epreuve = new Epreuve('Points à relier', 'numerique', isTraining);
+          App.render(`<div class="card"><h2>🔗 Points à relier ${isTraining?'(Entraînement)':''}</h2><p>Cliquez sur les points dans l'ordre pour faire apparaître le dessin !</p><canvas id="prCanvas" width="800" height="400" style="border:1px solid var(--border); width:100%;"></canvas><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>`);
+          const canvas = document.getElementById('prCanvas'); const ctx = canvas.getContext('2d');
+          function draw(){ ctx.clearRect(0,0,800,400); points.forEach((p,i)=>{ ctx.beginPath(); ctx.arc(p.x,p.y,12,0,2*Math.PI); ctx.fillStyle=i<state.current-1?'#10b981':'#f59e0b'; ctx.fill(); ctx.fillStyle='#000'; ctx.font='bold 16px sans-serif'; ctx.fillText(p.num,p.x-8,p.y+6); }); if(state.current>2){ ctx.beginPath(); ctx.strokeStyle='#10b981'; ctx.lineWidth=4; for(let i=0;i<state.current-2;i++){ctx.moveTo(points[i].x,points[i].y);ctx.lineTo(points[i+1].x,points[i+1].y);} ctx.stroke(); } }
+          draw();
+          canvas.addEventListener('click', (e)=>{ const rect=canvas.getBoundingClientRect(); const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height; const x=(e.clientX-rect.left)*scaleX, y=(e.clientY-rect.top)*scaleY; const target=points[state.current-1]; if(!target)return; if(Math.hypot(x-target.x,y-target.y)<25){ state.current++; App.beep(500,100); if(state.current>points.length){ const temps=(Date.now()-state.startTime)/1000; epreuve.session.score={temps:temps.toFixed(1),erreurs:state.erreurs}; App.render(`<div class="card"><h2>Terminé</h2><p>Temps: ${temps.toFixed(1)}s</p></div>`); if(!epreuve.isTraining){epreuve.finish();askSentiment(epreuve.session);} else{setTimeout(()=>{alert('Entraînement terminé !');showEpreuves();},100);} } else draw(); } else{state.erreurs++;App.beep(200,200);} });
+        }
+      },
+      PerceptionVisuelle: {
+        chooseMode() { chooseMode('Identique', Epreuves.PerceptionVisuelle.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const items = [{q:'🔵',choices:['🔵','🟣','🔴','🟠'],correct:0},{q:'⭐',choices:['🌟','⭐','✨','💫'],correct:1},{q:'🟥',choices:['🟦','🟥','🟨','🟩'],correct:1},{q:'▲',choices:['▼','◄','▲','►'],correct:2},{q:'🐶',choices:['🐱','🐶','🐭','🐹'],correct:1},{q:'🍎',choices:['🍏','🍎','🍐','🍊'],correct:1},{q:'🚗',choices:['🚕','🚙','🚗','🚌'],correct:2},{q:'⚽',choices:['🏀','⚾','⚽','🏈'],correct:2},{q:'🎵',choices:['🎶','🎵','🎼','🎤'],correct:1},{q:'❤️',choices:['🧡','💛','💚','❤️'],correct:3}];
+          const state = { items, current:0, responses:[] };
+          const epreuve = new Epreuve('Identique', 'numerique', isTraining);
+          App.render(`<div class="card center"><h2>👁️ Identique ${isTraining?'(Entraînement)':''}</h2><p>Quelle est l'image identique au modèle ?</p><div id="pvModel" style="font-size:5rem; margin:1rem;"></div><div id="pvChoices" style="display:flex; gap:1rem; justify-content:center; font-size:2rem;"></div><p id="pvProgress">1/${items.length}</p><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>`);
+          window._pvState=state; window._pvEpreuve=epreuve;
+          Epreuves.PerceptionVisuelle.afficher();
+        },
+        afficher(){ const s=window._pvState; if(s.current>=s.items.length){Epreuves.PerceptionVisuelle.terminer();return;} const item=s.items[s.current]; document.getElementById('pvModel').textContent=item.q; const choicesDiv=document.getElementById('pvChoices'); choicesDiv.innerHTML=''; item.choices.forEach((c,i)=>{ const btn=document.createElement('button'); btn.className='btn'; btn.textContent=c; btn.style.fontSize='2rem'; btn.onclick=()=>{ s.responses.push({expected:item.correct,given:i,correct:i===item.correct}); s.current++; Epreuves.PerceptionVisuelle.afficher(); }; choicesDiv.appendChild(btn); }); document.getElementById('pvProgress').textContent=`${s.current+1}/${s.items.length}`; },
+        terminer(){ const correct=window._pvState.responses.filter(r=>r.correct).length; const epreuve=window._pvEpreuve; epreuve.session.score={total:window._pvState.items.length,correct,erreurs:window._pvState.items.length-correct}; App.render(`<div class="card"><h2>Résultat</h2><p>Correct: ${correct}/${window._pvState.items.length}</p></div>`); if(!epreuve.isTraining){epreuve.finish();askSentiment(epreuve.session);}else{setTimeout(()=>{alert('Entraînement terminé !');showEpreuves();},100);} }
+      },
+      TrailMaking: {
+        chooseMode() { chooseMode('Suite logique', Epreuves.TrailMaking.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const elements = []; const chars='ABCDEFGHIJ';
+          for(let i=0;i<10;i++){ let x=40+Math.random()*720,y=40+Math.random()*320; let overlap=true,attempts=0; while(overlap&&attempts<100){overlap=false; for(const el of elements){if(Math.hypot(x-el.x,y-el.y)<60){overlap=true;break;}} if(overlap){x=40+Math.random()*720;y=40+Math.random()*320;} attempts++;} elements.push({type:'number',value:i+1,label:''+(i+1),x,y}); }
+          for(let i=0;i<10;i++){ let x=40+Math.random()*720,y=40+Math.random()*320; let overlap=true,attempts=0; while(overlap&&attempts<100){overlap=false; for(const el of elements){if(Math.hypot(x-el.x,y-el.y)<60){overlap=true;break;}} if(overlap){x=40+Math.random()*720;y=40+Math.random()*320;} attempts++;} elements.push({type:'letter',value:chars[i],label:chars[i],x,y}); }
+          const expected=[]; for(let i=0;i<10;i++){expected.push({type:'number',value:i+1});expected.push({type:'letter',value:chars[i]});}
+          const state={elements,expected,current:0,startTime:Date.now(),erreurs:0};
+          const epreuve=new Epreuve('Suite logique','numerique',isTraining);
+          App.render(`<div class="card"><h2>🔀 Suite logique ${isTraining?'(Entraînement)':''}</h2><p>Cliquez sur les ronds en alternant <b>chiffre</b> et <b>lettre</b> dans l'ordre :<br><span style="color:#3b82f6;font-size:1.2rem;">1 → A → 2 → B → 3 → C ...</span></p><canvas id="tmCanvas" width="800" height="400" style="border:1px solid var(--border); width:100%;"></canvas><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>`);
+          const canvas=document.getElementById('tmCanvas'); const ctx=canvas.getContext('2d');
+          const draw=()=>{ctx.clearRect(0,0,800,400);elements.forEach(el=>{ctx.beginPath();ctx.arc(el.x,el.y,18,0,2*Math.PI);ctx.fillStyle='#f59e0b';ctx.fill();ctx.fillStyle='#000';ctx.font='bold 14px sans-serif';ctx.fillText(el.label,el.x-8,el.y+5);});};
+          draw();
+          const clickHandler = (e) => {
+            const rect=canvas.getBoundingClientRect(); const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+            const x=(e.clientX-rect.left)*scaleX, y=(e.clientY-rect.top)*scaleY;
+            const exp=state.expected[state.current]; if(!exp) return;
+            let clicked=null;
+            for(const el of elements){ if(Math.hypot(x-el.x,y-el.y)<22){ clicked=el; break; } }
+            if(!clicked) return;
+            if(clicked.type===exp.type && clicked.value===exp.value){
+              state.current++; App.beep(500,100);
+              if(state.current>=state.expected.length){
+                canvas.removeEventListener('click', clickHandler);
+                const temps=(Date.now()-state.startTime)/1000;
+                epreuve.session.score={temps:temps.toFixed(1),erreurs:state.erreurs};
+                App.render(`<div class="card"><h2>Terminé</h2><p>Temps: ${temps.toFixed(1)}s</p></div>`);
+                if(!epreuve.isTraining){ epreuve.finish(); askSentiment(epreuve.session); }
+                else{ setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+              } else draw();
+            } else { state.erreurs++; App.beep(200,200); }
+          };
+          canvas.addEventListener('click', clickHandler);
+        }
+      },
+      Memorisation: {
+        chooseMode() { chooseMode('Mémorisation visuelle', Epreuves.Memorisation.start); },
+        start(mode) {
+          if(!App.currentUser) return alert('Profil requis.');
+          const isTraining = (mode === 'entrainement');
+          const animaux = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮'];
+          const selection = animaux.sort(()=>Math.random()-0.5).slice(0,6);
+          const allItems = [...selection, ...animaux.filter(i=>!selection.includes(i)).slice(0,6)].sort(()=>Math.random()-0.5);
+          const state = { selection, allItems, chosen:[], startTime:null };
+          const epreuve = new Epreuve('Mémorisation visuelle', 'numerique', isTraining);
+          App.render(`
+            <div class="top-nav"><span class="logo">Mémoire ${isTraining?'(Entraînement)':''}</span><button class="btn secondary" onclick="showEpreuves()">Menu</button></div>
+            <div class="card center">
+              <h2>🧠 Mémorisation visuelle</h2>
+              <p>Mémorisez ces 6 animaux (ils disparaîtront après 5 secondes) :</p>
+              <div style="font-size:3rem; margin:1rem;">${selection.join(' ')}</div>
+              <button class="btn" id="startMemBtn">Démarrer</button>
+            </div>
+          `);
+          document.getElementById('startMemBtn').addEventListener('click', ()=>{
+            state.startTime = Date.now();
+            App.render(`
+              <div class="card center">
+                <h2>🧠 Mémorisation visuelle</h2>
+                <p>Cliquez sur les animaux que vous avez vus :</p>
+                <div id="memChoices" style="display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center; font-size:2.5rem;"></div>
+                <button class="btn success" id="validateMem">Valider</button>
+              </div>
+            `);
+            const choicesDiv = document.getElementById('memChoices');
+            state.allItems.forEach(item => {
+              const div = document.createElement('div');
+              div.textContent = item; div.className = 'mem-item';
+              div.addEventListener('click', ()=>{
+                if(div.classList.contains('selected')) { div.classList.remove('selected'); state.chosen = state.chosen.filter(c=>c!==item); }
+                else { div.classList.add('selected'); state.chosen.push(item); }
+              });
+              choicesDiv.appendChild(div);
+            });
+            document.getElementById('validateMem').addEventListener('click', ()=>{
+              const correct = state.chosen.filter(c=>selection.includes(c)).length;
+              const errors = state.chosen.filter(c=>!selection.includes(c)).length;
+              epreuve.session.score = { correct, errors, total:6 };
+              App.render(`<div class="card"><h2>Résultat</h2><p>Correct: ${correct}/6, Erreurs: ${errors}</p></div>`);
+              if(!epreuve.isTraining) { epreuve.finish(); askSentiment(epreuve.session); }
+              else { setTimeout(()=>{ alert('Entraînement terminé !'); showEpreuves(); }, 100); }
+            });
+          });
+        }
+      }
+    };
+
+    function startDragShape(e) {
+      e.preventDefault();
+      const el = e.target.closest('.shape-on-zone');
+      if(!el) return;
+      const zone = el.parentElement;
+      const rect = zone.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const shiftX = clientX - el.getBoundingClientRect().left;
+      const shiftY = clientY - el.getBoundingClientRect().top;
+      const move = (ev) => { const cx = ev.touches ? ev.touches[0].clientX : ev.clientX; const cy = ev.touches ? ev.touches[0].clientY : ev.clientY; el.style.left = (cx - rect.left - shiftX) + 'px'; el.style.top = (cy - rect.top - shiftY) + 'px'; };
+      const stop = () => { document.removeEventListener('mousemove', move); document.removeEventListener('touchmove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchend', stop); };
+      document.addEventListener('mousemove', move); document.addEventListener('touchmove', move, {passive:false}); document.addEventListener('mouseup', stop); document.addEventListener('touchend', stop);
+    }
+
+    // ========== INITIALISATION ==========
+
+    function startApp() {
+      const last = localStorage.getItem('ergoeval_lastUser');
+      if(last) {
+        const user = App.getUsers().find(u=>u.id===last);
+        if(user) { App.currentUser = user; showDashboard(); return; }
+      }
+      showLogin();
+    }
+
+    window.onload = () => {
+      App.loadSettings();
+      startApp();
+    };
+
+    window.startApp = startApp;
+    window.showDashboard = showDashboard;
+    window.showEpreuves = showEpreuves;
+    window.showLogin = showLogin;
+    window.selectUser = selectUser;
+    window.createUser = createUser;
+    window.logout = logout;
+    window.openSettings = openSettings;
+    window.updateSetting = updateSetting;
+    window.showRapport = showRapport;
+    window.showInfo = showInfo;
+    window.showDataTools = showDataTools;
+    window.showObservateurQuestionnaire = showObservateurQuestionnaire;
+    window.saveObservateurQuestionnaire = saveObservateurQuestionnaire;
+    window.deleteObserverDataForCurrentUser = deleteObserverDataForCurrentUser;
+    window.exportCurrentUserCSV = exportCurrentUserCSV;
+    window.exportCurrentUserJSON = exportCurrentUserJSON;
+    window.exportAllCSV = exportAllCSV;
+    window.exportAllJSON = exportAllJSON;
+    window.importSessionsJSONFromInput = importSessionsJSONFromInput;
+    window.openLocalBackupPicker = openLocalBackupPicker;
+    window.showEditSession = showEditSession;
+    window.saveSessionEdit = saveSessionEdit;
+    window.deleteSessionById = deleteSessionById;
+    window.toggleSessionReportInclusion = toggleSessionReportInclusion;
+    window.saveReportFilterFromForm = saveReportFilterFromForm;
+    window.resetReportFilter = resetReportFilter;
+    window.printRapport = printRapport;
+    window.saveCurrentReportHTML = saveCurrentReportHTML;
+    window.Epreuves = Epreuves;
+    window.askSentiment = askSentiment;
+    window.saveSentiment = saveSentiment;
+    window.showPaperInput = showPaperInput;
+  </script>
+</body>
+</html>
